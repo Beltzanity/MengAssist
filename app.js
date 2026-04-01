@@ -23,6 +23,7 @@ let filesLoadingCount = 0;
 let pendingAttachments = [];
 
 // ==========================================
+// ==========================================
 // 2. AUTHENTICATION LOGIC
 // ==========================================
 async function handleLogin() {
@@ -31,13 +32,28 @@ async function handleLogin() {
 
   const email = document.getElementById('auth-email').value;
   const password = document.getElementById('auth-password').value;
-  const { error } = await supabaseClient.auth.signInWithPassword({ email, password });
+  const { data, error } = await supabaseClient.auth.signInWithPassword({ email, password });
   
   if (error) {
     document.getElementById('auth-error').textContent = error.message;
     btn.textContent = 'Login'; btn.disabled = false;
+  } else {
+    // Login successful
+    currentUser = data.user;
+    document.getElementById('auth-overlay').style.display = 'none';
+    initAppData();
   }
 }
+
+// Check if user is already logged in when the page loads
+window.addEventListener('DOMContentLoaded', async () => {
+  const { data: { session } } = await supabaseClient.auth.getSession();
+  if (session) {
+    currentUser = session.user;
+    document.getElementById('auth-overlay').style.display = 'none';
+    initAppData();
+  }
+});
 
 async function handleSignup() {
   const btn = document.getElementById('btn-signup');
