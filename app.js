@@ -54,34 +54,30 @@ async function handleSignup() {
 }
 
 async function handleLogout() {
-  await supabaseClient.auth.signOut();
+  // 1. Try to tell the server we are logging out. 
+  // If the server session is expired/glitched, it will fail silently here instead of crashing your app.
+  try {
+    await supabaseClient.auth.signOut();
+  } catch (error) {
+    console.warn("Supabase signout error, forcing local logout:", error);
+  }
   
-  // Save API key temporarily so user doesn't have to re-enter it after logging out
+  // 2. Save API key temporarily so user doesn't have to re-enter it
   const storedKey = localStorage.getItem('mengassist_key');
   
-  // Clear local storage to ensure clean logout
+  // 3. Clear local storage to forcefully kill the session
   localStorage.clear();
   
-  // Restore just the API key
+  // 4. Restore just the API key
   if (storedKey) {
     localStorage.setItem('mengassist_key', storedKey);
   }
   
+  // 5. Reload the page to show the login screen
   window.location.reload();
 }
 
-supabaseClient.auth.onAuthStateChange(async (event, session) => {
-  if (session) {
-    currentUser = session.user;
-    document.getElementById('auth-overlay').style.display = 'none';
-    if (!appInitialized) { appInitialized = true; await initAppData(); }
-  } else {
-    currentUser = null; appInitialized = false;
-    document.getElementById('auth-overlay').style.display = 'flex';
-  }
-});
-
-// Mobile Enter Logic (Kept as requested)
+// Mobile Enter Logic 
 document.getElementById('user-input').addEventListener('keydown', e => {
   const isMobile = window.innerWidth <= 768 || navigator.maxTouchPoints > 0;
   if (e.key === 'Enter' && !e.shiftKey) { 
