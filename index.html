@@ -107,25 +107,22 @@
 
 <!-- Modals -->
 <div id="modal-container" class="modal-overlay" onclick="if(event.target===this) closeModal()">
-  
   <div id="modal-sys" class="modal-box" style="display:none;">
     <div class="modal-title">System Prompt</div>
     
-    <!-- ADDED: System Prompt Presets -->
-    <div style="margin-bottom: 12px; text-align: left;">
-      <select id="sys-preset" onchange="applySystemPreset()" style="width: 100%; padding: 8px; border-radius: 6px; background: transparent; border: 1px solid #444; color: inherit; font-family: inherit;">
-        <option value="">-- Choose a Preset (Optional) --</option>
-        <option value="You are a helpful AI assistant.">Default Assistant</option>
-        <option value="Act as a Master Software Engineer. Think step-by-step, write clean, efficient, and well-documented code. Keep explanations concise.">Master Software Engineer</option>
-        <option value="You are an expert copywriter. Write engaging, concise, and persuasive content tailored for humans.">Expert Copywriter</option>
-        <option value="You are a strict and meticulous Code Reviewer. Point out security flaws, performance bottlenecks, and style violations.">Code Reviewer</option>
+    <!-- Dynamic Presets UI -->
+    <div style="display: flex; gap: 10px; margin-bottom: 12px;">
+      <select id="sys-preset" onchange="applySystemPreset()" style="flex: 1; padding: 8px; border-radius: 6px; background: transparent; border: 1px solid #444; color: inherit; font-family: inherit;">
+        <!-- Populated via JS -->
       </select>
+      <button class="btn-ghost" onclick="addSystemPreset()">+ Add</button>
     </div>
 
-    <textarea id="temp-system" placeholder="You are a helpful assistant." rows="5" style="width:100%;"></textarea>
+    <textarea id="temp-system" placeholder="Enter system prompt here..." rows="5" style="width:100%;"></textarea>
+    
     <div class="edit-actions" style="margin-top: 10px;">
       <button onclick="closeModal()">Cancel</button>
-      <button class="btn-save" onclick="saveSystem()">Save</button>
+      <button class="btn-save" onclick="saveSystem()">Save & Apply</button>
     </div>
   </div>
 
