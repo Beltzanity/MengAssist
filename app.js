@@ -299,30 +299,76 @@ function openConfirm(msg, onConfirm) {
 }
 function execConfirm() { if (confirmCallback) confirmCallback(); closeModal(); }
 
-// NEW ADDITION: Preset handler
-function applySystemPreset() {
-  const presetSelect = document.getElementById('sys-preset');
-  const systemTextarea = document.getElementById('temp-system');
-  if (presetSelect.value) {
-    systemTextarea.value = presetSelect.value;
+// ─── Custom System Prompt Presets ──────────────────────────
+
+// 1. Ensure presets exist in the config
+function initPresets() {
+  if (!CFG.systemPresets || !CFG.systemPresets.length) {
+    // Migrate existing prompt into slot 1
+    CFG.systemPresets = [{ title: 'Preset 1', content: CFG.system || 'You are a helpful assistant.' }];
+    CFG.activePresetIdx = 0;
   }
 }
 
-// UPDATED openModal and closeModal
+// 2. Render the dropdown options
+function renderPresets() {
+  initPresets();
+  const sel = document.getElementById('sys-preset');
+  sel.innerHTML = '';
+  
+  CFG.systemPresets.forEach((p, idx) => {
+    const opt = document.createElement('option');
+    opt.value = idx;
+    opt.textContent = p.title;
+    if (idx === CFG.activePresetIdx) opt.selected = true;
+    sel.appendChild(opt);
+  });
+  
+  document.getElementById('temp-system').value = CFG.systemPresets[CFG.activePresetIdx].content;
+}
+
+// 3. Handle dropdown change
+function applySystemPreset() {
+  CFG.activePresetIdx = parseInt(document.getElementById('sys-preset').value);
+  document.getElementById('temp-system').value = CFG.systemPresets[CFG.activePresetIdx].content;
+}
+
+// 4. Create a new blank preset slot
+function addSystemPreset() {
+  initPresets();
+  const newIdx = CFG.systemPresets.length;
+  CFG.systemPresets.push({ title: 'Preset ' + (newIdx + 1), content: '' });
+  CFG.activePresetIdx = newIdx;
+  
+  renderPresets();
+  syncSettingsToDB(); // Sync the new slot to cloud
+}
+
+// 5. Save the typed content permanently into the active slot
+function saveSystem() {
+  const text = document.getElementById('temp-system').value.trim();
+  
+  // Save to the active chat config
+  CFG.system = text; 
+  
+  // Save to the selected Preset slot
+  if (CFG.systemPresets && CFG.systemPresets[CFG.activePresetIdx]) {
+    CFG.systemPresets[CFG.activePresetIdx].content = text;
+  }
+  
+  syncSettingsToDB(); // Cloud sync
+  closeModal(); 
+  toast('System Prompt Saved & Applied ✓', 'ok'); 
+}
+
+// ─── Modals & Confirm Logic ───────────────────────────────
 function openModal(id) {
   document.getElementById('modal-container').classList.add('open');
   document.querySelectorAll('.modal-box').forEach(el => el.style.display = 'none'); 
   document.getElementById(id).style.display = 'flex';
   
   if (id === 'modal-sys') {
-    document.getElementById('temp-system').value = CFG.system;
-    
-    // Auto-select dropdown if the text matches a preset exactly
-    const presetSelect = document.getElementById('sys-preset');
-    if (presetSelect) {
-      const match = Array.from(presetSelect.options).find(opt => opt.value === CFG.system);
-      presetSelect.value = match ? CFG.system : "";
-    }
+    renderPresets(); // Dynamically load slots when opening
   }
   else if (id === 'modal-param') { 
     document.getElementById('temp-temp').value = CFG.temp; 
