@@ -316,8 +316,8 @@ details.think[open] summary::before { transform: rotate(90deg); }
 // ==========================================
 const supabaseUrl = 'https://vazzmblpmgaqkrlvwzxe.supabase.co'; // Replace with your URL
 const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZhenptYmxwbWdhcWtybHZ3enhlIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzUwNDk1OTIsImV4cCI6MjA5MDYyNTU5Mn0.BpiU8OW1bWrktOJNbNmTOy4NuuR8W_rdmtKU2Uzdi4k'; // Replace with your anon public key
-const supabase = supabase.createClient(supabaseUrl, supabaseKey);
-
+const supabase = window.supabase.createClient(supabaseUrl, supabaseKey);
+  
 let currentUser = null;
 
 let CFG = {
