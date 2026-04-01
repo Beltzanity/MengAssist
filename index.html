@@ -288,6 +288,8 @@ details.think[open] summary::before { transform: rotate(90deg); }
 
 <!-- Modals -->
 <div id="modal-container" class="modal-overlay" onclick="if(event.target===this) closeModal()">
+  
+  <!-- System Prompt -->
   <div id="modal-sys" class="modal-box" style="display:none;">
     <div class="modal-title">System Prompt</div>
     <textarea id="temp-system" placeholder="You are a helpful assistant."></textarea>
@@ -296,6 +298,8 @@ details.think[open] summary::before { transform: rotate(90deg); }
       <button class="btn-save" onclick="saveSystem()">Save</button>
     </div>
   </div>
+
+  <!-- Parameter Settings -->
   <div id="modal-param" class="modal-box" style="display:none;">
     <div class="modal-title">Generation Settings</div>
     <div class="modal-slider-group">
@@ -311,6 +315,17 @@ details.think[open] summary::before { transform: rotate(90deg); }
       <button class="btn-save" onclick="saveParams()">Save</button>
     </div>
   </div>
+
+  <!-- Delete Confirmation Modal (NEW) -->
+  <div id="modal-confirm" class="modal-box" style="display:none; max-width: 320px; align-items: center; text-align: center;">
+    <div class="modal-title" style="color: #ff6e6e;">Are you sure?</div>
+    <p id="confirm-msg" style="font-size: 12px; color: var(--text); margin-top: 5px; line-height: 1.5;"></p>
+    <div class="edit-actions" style="margin-top: 10px; width: 100%; justify-content: center;">
+      <button class="btn-ghost" onclick="closeModal()" style="flex:1;">Cancel</button>
+      <button class="btn-save" onclick="execConfirm()" style="background: #ff6e6e; color: #000; flex:1;">Confirm</button>
+    </div>
+  </div>
+
 </div>
 
 <div id="chat-box"></div>
@@ -343,6 +358,7 @@ const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZS
 const supabaseClient = window.supabase.createClient(supabaseUrl, supabaseKey);
 
 let currentUser = null;
+let appInitialized = false;
 
 let CFG = {
   url: '', key: '', model: '', 
@@ -362,8 +378,7 @@ let pendingAttachments = [];
 // ==========================================
 async function handleLogin() {
   const btn = document.getElementById('btn-login');
-  btn.textContent = 'Authenticating...';
-  btn.disabled = true;
+  btn.textContent = 'Authenticating...'; btn.disabled = true;
 
   const email = document.getElementById('auth-email').value;
   const password = document.getElementById('auth-password').value;
@@ -371,8 +386,7 @@ async function handleLogin() {
   
   if (error) {
     document.getElementById('auth-error').textContent = error.message;
-    btn.textContent = 'Login';
-    btn.disabled = false;
+    btn.textContent = 'Login'; btn.disabled = false;
   }
 }
 
@@ -381,25 +395,13 @@ async function handleSignup() {
   const email = document.getElementById('auth-email').value;
   const password = document.getElementById('auth-password').value;
   
-  if (!email || !password) {
-    document.getElementById('auth-error').textContent = "Please enter an email and password.";
-    return;
-  }
+  if (!email || !password) { document.getElementById('auth-error').textContent = "Please enter an email and password."; return; }
 
-  btn.textContent = 'Signing up...';
-  btn.disabled = true;
-
+  btn.textContent = 'Signing up...'; btn.disabled = true;
   const { error } = await supabaseClient.auth.signUp({ email, password });
   
-  if (error) {
-    document.getElementById('auth-error').textContent = error.message;
-    btn.textContent = 'Sign Up';
-    btn.disabled = false;
-  } else {
-    document.getElementById('auth-error').textContent = "Success! Logging you in...";
-    btn.textContent = 'Sign Up';
-    btn.disabled = false;
-  }
+  if (error) { document.getElementById('auth-error').textContent = error.message; btn.textContent = 'Sign Up'; btn.disabled = false; } 
+  else { document.getElementById('auth-error').textContent = "Success! Logging you in..."; btn.textContent = 'Sign Up'; btn.disabled = false; }
 }
 
 async function handleLogout() {
@@ -411,9 +413,9 @@ supabaseClient.auth.onAuthStateChange(async (event, session) => {
   if (session) {
     currentUser = session.user;
     document.getElementById('auth-overlay').style.display = 'none';
-    await initAppData(); 
+    if (!appInitialized) { appInitialized = true; await initAppData(); }
   } else {
-    currentUser = null;
+    currentUser = null; appInitialized = false;
     document.getElementById('auth-overlay').style.display = 'flex';
   }
 });
@@ -423,129 +425,153 @@ document.getElementById('user-input').addEventListener('keydown', e => {
 });
 
 // ==========================================
-// 3. SECURE DATA SYNCING (OPTIMISTIC UI)
+// 3. SECURE DATA SYNCING (Dual-Save Fix)
 // ==========================================
+function saveLocalChats() {
+  try { localStorage.setItem('mengassist_chats', JSON.stringify(chats)); } catch(e){}
+}
+
 async function initAppData() {
-  // 1. Load Local API Key First (Zero-Trust Security)
+  // 1. FAST LOAD: Check LocalStorage first to prevent memory wipes
   const storedKey = localStorage.getItem('mengassist_key');
   if (storedKey) CFG.key = storedKey;
 
-  // 2. Fetch Non-Sensitive Config from Supabase
-  try {
-    const { data: settingsData } = await supabaseClient
-      .from('settings')
-      .select('config')
-      .eq('user_id', currentUser.id)
-      .single();
+  const storedCfg = localStorage.getItem('mengassist_cfg');
+  if (storedCfg) {
+    try { Object.assign(CFG, JSON.parse(storedCfg)); } catch(e){}
+  }
 
-    if (settingsData && settingsData.config) {
-      CFG.url = settingsData.config.url || CFG.url;
-      CFG.model = settingsData.config.model || CFG.model;
-      CFG.temp = settingsData.config.temp || CFG.temp;
-      CFG.topp = settingsData.config.topp || CFG.topp;
-      CFG.system = settingsData.config.system || CFG.system;
-      CFG.thinking = settingsData.config.thinking || false;
-    }
-  } catch (err) { console.warn("Could not load settings from DB", err); }
-  
-  // Update UI Inputs
+  const storedChats = localStorage.getItem('mengassist_chats');
+  if (storedChats) {
+    try { chats = JSON.parse(storedChats); } catch(e){}
+  }
+
+  // Update UI Inputs immediately with LocalStorage
   document.getElementById('cfg-url').value = CFG.url || '';
   document.getElementById('cfg-key').value = CFG.key || '';
   document.getElementById('cfg-model').value = CFG.model || '';
   document.getElementById('cfg-thinking').checked = CFG.thinking || false;
   
-  // 3. Fetch Chats
+  if (chats.length > 0) loadChat(chats[0].id, true); else startNewChat(true);
+
+  // 2. BACKGROUND SYNC: Fetch from Supabase
   try {
-    const { data: chatsData } = await supabaseClient
-      .from('chats')
-      .select('*')
-      .order('updated_at', { ascending: false });
-
-    if (chatsData) chats = chatsData;
-  } catch (err) { console.warn("Could not load chats from DB", err); }
-
-  if (chats.length > 0) loadChat(chats[0].id); 
-  else startNewChat();
+    const { data: settingsData } = await supabaseClient.from('settings').select('config').eq('user_id', currentUser.id).single();
+    if (settingsData && settingsData.config) {
+      Object.assign(CFG, settingsData.config);
+      localStorage.setItem('mengassist_cfg', JSON.stringify(settingsData.config)); // Merge changes
+      document.getElementById('cfg-url').value = CFG.url || '';
+      document.getElementById('cfg-model').value = CFG.model || '';
+      document.getElementById('cfg-thinking').checked = CFG.thinking || false;
+    }
+  } catch (err) {}
   
+  try {
+    const { data: chatsData } = await supabaseClient.from('chats').select('*').order('updated_at', { ascending: false });
+    if (chatsData && chatsData.length > 0) { 
+      chats = chatsData; 
+      saveLocalChats();
+      // Re-render sidebar properly with fetched chats
+      if (!currentChatId || !chats.find(c => c.id === currentChatId)) {
+        if (chats.length > 0) loadChat(chats[0].id, true);
+      } else {
+        loadChat(currentChatId, true); // reload current
+      }
+    }
+  } catch (err) {}
+
   if (!CFG.url || !CFG.key || !CFG.model) toggleConfig();
 }
 
-// NOTE: This function no longer `awaits` the database, preventing UI freezing!
 async function syncSettingsToDB() {
-  if (!currentUser) return;
-  
-  // Create a copy of config and DELETE the key so it NEVER goes to your cloud database
-  const safeConfig = { ...CFG };
-  delete safeConfig.key;
+  const safeConfig = { ...CFG }; delete safeConfig.key;
+  // Always dual-save locally immediately
+  localStorage.setItem('mengassist_cfg', JSON.stringify(safeConfig));
 
-  try {
-    await supabaseClient.from('settings').upsert({ 
-      user_id: currentUser.id, 
-      config: safeConfig 
-    });
-  } catch(err) {
-    console.warn("DB Sync failed quietly:", err);
+  if (!currentUser) return;
+  try { await supabaseClient.from('settings').upsert({ user_id: currentUser.id, config: safeConfig }); } catch(err) {}
+}
+
+async function saveState() {
+  if (turns.length === 0) return;
+
+  // CRITICAL FIX: Strip transient typing states before saving!
+  const cleanTurns = turns.map(t => {
+    const copy = {...t};
+    delete copy._typing; delete copy._loading; delete copy._editing;
+    return copy;
+  });
+  
+  if (!currentChatId) {
+    currentChatId = Date.now().toString();
+    let textTitle = cleanTurns[0].content || "Image Upload";
+    const title = textTitle.substring(0, 30) + (textTitle.length > 30 ? '...' : '');
+    chats.unshift({ id: currentChatId, title, turns: [] });
   }
+  
+  const chatIndex = chats.findIndex(c => c.id === currentChatId);
+  if (chatIndex > -1) { 
+    chats[chatIndex].turns = cleanTurns; 
+    
+    saveLocalChats(); // Always save locally first so you never lose memory!
+
+    if (currentUser) {
+      try {
+        await supabaseClient.from('chats').upsert({
+          id: currentChatId,
+          user_id: currentUser.id,
+          title: chats[chatIndex].title,
+          turns: cleanTurns,
+          updated_at: new Date().toISOString()
+        });
+      } catch (e) {}
+    }
+  }
+  renderSidebar();
 }
 
 // ─── Attachments ──────────────────────────────────────────
 async function handleFiles(event) {
   const files = event.target.files;
   for(let file of files) {
-    filesLoadingCount++;
-    document.getElementById('send-btn').disabled = true;
-    renderAttachments(); 
+    filesLoadingCount++; document.getElementById('send-btn').disabled = true; renderAttachments(); 
     
-    if (file.type.startsWith('image/')) {
-      const reader = new FileReader();
-      reader.onload = (e) => {
-        pendingAttachments.push({ type: 'image', name: file.name, data: e.target.result });
+    // Wrapped in Try/Catch to prevent permanent stuck states
+    try {
+      if (file.type.startsWith('image/')) {
+        const reader = new FileReader();
+        reader.onload = (e) => { pendingAttachments.push({ type: 'image', name: file.name, data: e.target.result }); finishFileLoad(); };
+        reader.onerror = () => finishFileLoad();
+        reader.readAsDataURL(file);
+      } else {
+        const text = await file.text();
+        pendingAttachments.push({ type: 'text', name: file.name, data: text });
         finishFileLoad();
-      };
-      reader.readAsDataURL(file);
-    } else {
-      const text = await file.text();
-      pendingAttachments.push({ type: 'text', name: file.name, data: text });
-      finishFileLoad();
-    }
+      }
+    } catch(err) { finishFileLoad(); }
   }
   event.target.value = ''; 
 }
 
 function finishFileLoad() {
   filesLoadingCount--;
-  if (filesLoadingCount <= 0) {
-    filesLoadingCount = 0;
-    document.getElementById('send-btn').disabled = false;
-  }
+  if (filesLoadingCount <= 0) { filesLoadingCount = 0; document.getElementById('send-btn').disabled = false; }
   renderAttachments();
 }
 
 function renderAttachments() {
-  const container = document.getElementById('attachments-preview');
-  container.innerHTML = '';
-  
+  const container = document.getElementById('attachments-preview'); container.innerHTML = '';
   pendingAttachments.forEach((att, idx) => {
     const chip = el('div', 'attach-chip');
-    if (att.type === 'image') chip.innerHTML = `<img src="${att.data}"> ${att.name}`;
-    else chip.innerHTML = `📄 ${att.name}`;
-    const btn = el('button'); btn.textContent = '×';
-    btn.onclick = () => { pendingAttachments.splice(idx, 1); renderAttachments(); };
+    if (att.type === 'image') chip.innerHTML = `<img src="${att.data}"> ${att.name}`; else chip.innerHTML = `📄 ${att.name}`;
+    const btn = el('button'); btn.textContent = '×'; btn.onclick = () => { pendingAttachments.splice(idx, 1); renderAttachments(); };
     chip.appendChild(btn); container.appendChild(chip);
   });
-
-  if (filesLoadingCount > 0) {
-    const loadingChip = el('div', 'attach-chip');
-    loadingChip.textContent = '⏳ Loading file...';
-    container.appendChild(loadingChip);
-  }
+  if (filesLoadingCount > 0) { const loadChip = el('div', 'attach-chip'); loadChip.textContent = '⏳ Loading file...'; container.appendChild(loadChip); }
 }
 
 // ─── Settings & Presets ────────────────────────────
-function applyPreset() {
-  const val = document.getElementById('cfg-preset').value;
-  if (val) document.getElementById('cfg-url').value = val;
-}
+function applyPreset() { const val = document.getElementById('cfg-preset').value; if (val) document.getElementById('cfg-url').value = val; }
 
 async function connectAPI() {
   const urlBase = document.getElementById('cfg-url').value.trim(), apiKey = document.getElementById('cfg-key').value.trim();
@@ -574,6 +600,17 @@ async function connectAPI() {
   btn.textContent = 'Connect'; btn.disabled = false;
 }
 
+// ─── Modals & Confirm Logic ───────────────────────────────
+let confirmCallback = null;
+function openConfirm(msg, onConfirm) {
+  document.getElementById('modal-container').classList.add('open');
+  document.querySelectorAll('.modal-box').forEach(el => el.style.display = 'none');
+  document.getElementById('modal-confirm').style.display = 'flex';
+  document.getElementById('confirm-msg').textContent = msg;
+  confirmCallback = onConfirm;
+}
+function execConfirm() { if (confirmCallback) confirmCallback(); closeModal(); }
+
 function openModal(id) {
   document.getElementById('modal-container').classList.add('open');
   document.querySelectorAll('.modal-box').forEach(el => el.style.display = 'none'); document.getElementById(id).style.display = 'flex';
@@ -582,19 +619,8 @@ function openModal(id) {
 }
 function closeModal() { document.getElementById('modal-container').classList.remove('open'); }
 
-// UI executes INSTANTLY, database saves in background
-function saveSystem() { 
-  CFG.system = document.getElementById('temp-system').value.trim(); 
-  syncSettingsToDB(); // non-blocking
-  closeModal(); toast('System Prompt Saved ✓', 'ok'); 
-}
-
-function saveParams() { 
-  CFG.temp = parseFloat(document.getElementById('temp-temp').value); 
-  CFG.topp = parseFloat(document.getElementById('temp-topp').value); 
-  syncSettingsToDB(); // non-blocking
-  closeModal(); toast('Settings Saved ✓', 'ok'); 
-}
+function saveSystem() { CFG.system = document.getElementById('temp-system').value.trim(); syncSettingsToDB(); closeModal(); toast('System Prompt Saved ✓', 'ok'); }
+function saveParams() { CFG.temp = parseFloat(document.getElementById('temp-temp').value); CFG.topp = parseFloat(document.getElementById('temp-topp').value); syncSettingsToDB(); closeModal(); toast('Settings Saved ✓', 'ok'); }
 
 function toggleSidebar(force) {
   const sb = document.getElementById('sidebar'), ov = document.getElementById('sidebar-overlay');
@@ -616,62 +642,59 @@ function toggleConfig() { document.getElementById('config').classList.toggle('op
 
 function saveConfig() {
   CFG.url = document.getElementById('cfg-url').value.trim(); 
-  
-  // Save API key strictly to Browser Local Storage (Zero-Trust Security)
   const newKey = document.getElementById('cfg-key').value.trim(); 
-  if (newKey) {
-    CFG.key = newKey;
-    localStorage.setItem('mengassist_key', newKey);
-  }
-
+  if (newKey) { CFG.key = newKey; localStorage.setItem('mengassist_key', newKey); }
   CFG.model = document.getElementById('cfg-model').value.trim(); 
   CFG.thinking = document.getElementById('cfg-thinking').checked;
-  
-  syncSettingsToDB(); // non-blocking
-  toggleConfig(); 
-  toast('Config saved locally & securely ✓', 'ok');
+  syncSettingsToDB(); toggleConfig(); toast('Config saved locally & securely ✓', 'ok');
 }
 
 // ─── Data Management ──────────────────────────────────────
-async function saveState() {
-  if (turns.length === 0 || !currentUser) return;
-  
-  if (!currentChatId) {
-    currentChatId = Date.now().toString();
-    let textTitle = turns[0].content || "Image Upload";
-    const title = textTitle.substring(0, 30) + (textTitle.length > 30 ? '...' : '');
-    chats.unshift({ id: currentChatId, title, turns: [] });
-  }
-  const chatIndex = chats.findIndex(c => c.id === currentChatId);
-  if (chatIndex > -1) { 
-    chats[chatIndex].turns = turns; 
-    
-    // Save quietly in background. Wrapped in Try/Catch so it doesn't break the UI.
-    try {
-      await supabaseClient.from('chats').upsert({
-        id: currentChatId,
-        user_id: currentUser.id,
-        title: chats[chatIndex].title,
-        turns: turns,
-        updated_at: new Date().toISOString()
-      });
-    } catch (e) { console.warn("Background chat sync error", e); }
-  }
-  renderSidebar();
+function startNewChat(keepSidebarOpen = false) { 
+  currentChatId = null; turns = []; renderAll(); renderSidebar(); 
+  if (!keepSidebarOpen) toggleSidebar(false); 
 }
 
-function startNewChat() { currentChatId = null; turns = []; renderAll(); renderSidebar(); toggleSidebar(false); }
-function loadChat(id) {
+function loadChat(id, keepSidebarOpen = false) {
   const chat = chats.find(c => c.id === id);
-  if (chat) { currentChatId = id; turns = chat.turns.map(t => ({...t, _editing: false})); renderAll(); renderSidebar(); toggleSidebar(false); }
+  if (chat) { 
+    currentChatId = id; 
+    turns = chat.turns.map(t => ({...t, _editing: false, _typing: false, _loading: false})); // strip UI errors
+    renderAll(); renderSidebar(); 
+    if (!keepSidebarOpen) toggleSidebar(false); 
+  }
 }
-async function delChat(e, id) { 
+
+// FIX 1: Confirm before delete, and keep sidebar cleanly open
+function delChat(e, id) { 
   e.stopPropagation(); 
-  chats = chats.filter(c => c.id !== id); 
-  try { await supabaseClient.from('chats').delete().eq('id', id); } catch(e){}
-  if (currentChatId === id) startNewChat(); else renderSidebar(); 
+  openConfirm('Are you sure you want to permanently delete this chat history?', async () => {
+    chats = chats.filter(c => c.id !== id); 
+    saveLocalChats();
+    try { if (currentUser) await supabaseClient.from('chats').delete().eq('id', id); } catch(err){}
+    
+    if (currentChatId === id) {
+      if (chats.length > 0) loadChat(chats[0].id, true); else startNewChat(true);
+    } else {
+      renderSidebar(); 
+    }
+  });
 }
-function clearCurrentChat() { turns = []; saveState(); toggleConfig(); renderAll(); }
+
+function clearCurrentChat() { 
+  openConfirm('Are you sure you want to clear all messages in this chat?', async () => {
+    turns = []; 
+    const chatIndex = chats.findIndex(c => c.id === currentChatId);
+    if (chatIndex > -1) {
+      chats[chatIndex].turns = [];
+      saveLocalChats();
+      try { if (currentUser) await supabaseClient.from('chats').update({ turns: [] }).eq('id', currentChatId); } catch(err){}
+    }
+    document.getElementById('config').classList.remove('open'); 
+    document.getElementById('cfg-toggle').classList.remove('active');
+    renderAll();
+  });
+}
 
 // ─── Messaging & API Payload ──────────────────────────────
 function buildMessages(upToTurnIdx = null) {
@@ -682,17 +705,11 @@ function buildMessages(upToTurnIdx = null) {
     if (t.role === 'user') {
       if (t.images && t.images.length > 0) {
         let contentArr = [];
-        if (t.content && t.content.trim() !== "") {
-          contentArr.push({ type: 'text', text: t.content });
-        }
+        if (t.content && t.content.trim() !== "") { contentArr.push({ type: 'text', text: t.content }); }
         t.images.forEach(img => contentArr.push({ type: 'image_url', image_url: { url: img } }));
         list.push({ role: 'user', content: contentArr });
-      } else {
-        list.push({ role: 'user', content: t.content });
-      }
-    } else {
-      list.push({ role: 'assistant', content: t.versions[t.idx] });
-    }
+      } else { list.push({ role: 'user', content: t.content }); }
+    } else { list.push({ role: 'assistant', content: t.versions[t.idx] }); }
   }
   return list;
 }
@@ -711,15 +728,9 @@ async function sendMessage() {
   
   turns.push({ role: 'user', content: text, images: images.length > 0 ? images : null }); 
   
-  // UI responds instantly
   inp.value = ''; autoResize(inp); 
-  pendingAttachments = []; renderAttachments();
-  renderAll();
-
-  // Save State non-blocking
-  saveState();
+  pendingAttachments = []; renderAttachments(); renderAll(); saveState();
   
-  // Hit the external AI API
   await callAPI(false, null);
 }
 
