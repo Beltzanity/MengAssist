@@ -347,43 +347,34 @@ function addSystemPreset() {
 // 6. Delete the currently selected preset slot
 function removeSystemPreset() {
   initPresets();
-  
-  if (CFG.systemPresets.length <= 1) {
-    toast('You must keep at least one preset.', 'err');
-    return;
+// ─── Fixed 5-Slot System Presets ──────────────────────────
+
+function initPresets() {
+  // If presets don't exist yet, create exactly 5 slots. Put current prompt in slot 1.
+  if (!CFG.systemPresets || CFG.systemPresets.length !== 5) {
+    CFG.systemPresets = [
+      CFG.system || 'You are a helpful assistant.', 
+      '', '', '', ''
+    ];
+    CFG.activePresetIdx = 0;
   }
-  
-  openConfirm('Are you sure you want to delete this preset slot?', () => {
-    // 1. Remove it from the array
-    CFG.systemPresets.splice(CFG.activePresetIdx, 1);
-    
-    // 2. Fall back to the previous slot safely
-    CFG.activePresetIdx = Math.max(0, CFG.activePresetIdx - 1);
-    
-    // 3. Save to cloud
-    syncSettingsToDB();
-    
-    // 4. Because the confirm modal closes everything, we re-open the sys modal smoothly
-    setTimeout(() => {
-      openModal('modal-sys');
-      toast('Preset deleted ✓', 'ok');
-    }, 50);
-  });
 }
 
-// 5. Save the typed content permanently into the active slot
+function applySystemPreset() {
+  const idx = parseInt(document.getElementById('sys-preset').value);
+  document.getElementById('temp-system').value = CFG.systemPresets[idx];
+}
+
 function saveSystem() {
+  initPresets();
+  const idx = parseInt(document.getElementById('sys-preset').value);
   const text = document.getElementById('temp-system').value.trim();
   
-  // Save to the active chat config
-  CFG.system = text; 
+  CFG.systemPresets[idx] = text; // Save text to the chosen slot
+  CFG.activePresetIdx = idx;     // Remember this is our active slot
+  CFG.system = text;             // Tell the app to actually use this prompt
   
-  // Save to the selected Preset slot
-  if (CFG.systemPresets && CFG.systemPresets[CFG.activePresetIdx]) {
-    CFG.systemPresets[CFG.activePresetIdx].content = text;
-  }
-  
-  syncSettingsToDB(); // Cloud sync
+  syncSettingsToDB();            // Sync to cloud
   closeModal(); 
   toast('System Prompt Saved & Applied ✓', 'ok'); 
 }
@@ -395,7 +386,10 @@ function openModal(id) {
   document.getElementById(id).style.display = 'flex';
   
   if (id === 'modal-sys') {
-    renderPresets(); // Dynamically load slots when opening
+    initPresets();
+    // Set the dropdown to the active slot, and load its text
+    document.getElementById('sys-preset').value = CFG.activePresetIdx;
+    document.getElementById('temp-system').value = CFG.systemPresets[CFG.activePresetIdx];
   }
   else if (id === 'modal-param') { 
     document.getElementById('temp-temp').value = CFG.temp; 
