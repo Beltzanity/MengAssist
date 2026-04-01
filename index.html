@@ -111,9 +111,14 @@
     <div class="modal-title">System Prompt</div>
     
     <!-- Dynamic Presets UI -->
-    <div style="display: flex; gap: 10px; margin-bottom: 12px;">
+    <div style="display: flex; gap: 8px; margin-bottom: 12px;">
       <select id="sys-preset" onchange="applySystemPreset()" style="flex: 1; padding: 8px; border-radius: 6px; background: transparent; border: 1px solid #444; color: inherit; font-family: inherit;">
         <!-- Populated via JS -->
+      </select>
+      <button class="btn-ghost" onclick="addSystemPreset()">+ Add</button>
+      <button class="btn-ghost btn-danger" onclick="removeSystemPreset()" style="padding: 8px 12px;" title="Delete Preset">✕</button>
+    </div>
+    <!-- Populated via JS -->
       </select>
       <button class="btn-ghost" onclick="addSystemPreset()">+ Add</button>
     </div>
