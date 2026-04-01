@@ -63,9 +63,11 @@ header .box-inner { justify-content: space-between; align-items: center; }
 .cfg-check label { font-size: 11px; color: var(--muted); cursor: pointer; }
 .cfg-actions { display: flex; gap: 8px; margin-top: 14px; flex-wrap: wrap; }
 
-.btn-save { background: var(--accent); color: #0d0d0f; border: none; font-family: var(--mono); font-size: 11px; font-weight: 600; padding: 9px 20px; border-radius: 8px; cursor: pointer; }
+.btn-save { background: var(--accent); color: #0d0d0f; border: none; font-family: var(--mono); font-size: 11px; font-weight: 600; padding: 9px 20px; border-radius: 8px; cursor: pointer; transition: opacity .2s; }
+.btn-save:disabled { opacity: 0.6; cursor: not-allowed; }
 .btn-ghost { background: none; border: 1px solid var(--border); color: var(--text); font-family: var(--mono); font-size: 11px; padding: 9px 14px; border-radius: 8px; cursor: pointer; transition: .2s; }
-.btn-ghost:hover { border-color: var(--accent); }
+.btn-ghost:disabled { opacity: 0.6; cursor: not-allowed; }
+.btn-ghost:hover:not(:disabled) { border-color: var(--accent); }
 .btn-danger:hover { border-color: #ff6e6e; color: #ff6e6e; }
 
 /* Modals */
@@ -83,7 +85,7 @@ header .box-inner { justify-content: space-between; align-items: center; }
 /* Auth Overlay */
 #auth-overlay { position:fixed; inset:0; background:var(--bg); z-index:9999; display:flex; align-items:center; justify-content:center; flex-direction:column; gap:20px; transition: opacity 0.3s; }
 #auth-box { background:var(--surface); padding:30px; border-radius:12px; border:1px solid var(--border); width:100%; max-width: 320px; display:flex; flex-direction:column; gap:15px; }
-#auth-box input { padding:10px 12px; border-radius:8px; border:1px solid var(--border); background:var(--bg); color:var(--text); font-family: var(--mono); font-size: 12px; outline: none; }
+#auth-box input { padding:10px 12px; border-radius:8px; border:1px solid var(--border); background:var(--bg); color:var(--text); font-family: var(--mono); font-size: 12px; outline: none; width: 100%; }
 #auth-box input:focus { border-color: var(--accent); }
 
 /* Chat Box */
@@ -195,10 +197,16 @@ details.think[open] summary::before { transform: rotate(90deg); }
   <div class="logo"><div class="dot"></div>MengAssist</div>
   <div id="auth-box">
     <p style="font-size: 12px; text-align: center; color: var(--muted);">Sign in to access your chats securely</p>
-    <input type="email" id="auth-email" placeholder="Email Address">
-    <input type="password" id="auth-password" placeholder="Password">
-    <button class="btn-save" onclick="handleLogin()">Login</button>
-    <button class="btn-ghost" onclick="handleSignup()">Sign Up</button>
+    
+    <!-- We wrapped the inputs inside a <form> tag so hitting enter/go submits properly -->
+    <form onsubmit="event.preventDefault(); handleLogin();" style="display:flex; flex-direction:column; gap:15px; width: 100%;">
+      <input type="email" id="auth-email" placeholder="Email Address" required>
+      <input type="password" id="auth-password" placeholder="Password" required>
+      
+      <button type="submit" class="btn-save" id="btn-login">Login</button>
+      <button type="button" class="btn-ghost" id="btn-signup" onclick="handleSignup()">Sign Up</button>
+    </form>
+
     <div id="auth-error" style="color:#ff6e6e; font-size:11px; text-align:center;"></div>
   </div>
 </div>
@@ -316,9 +324,10 @@ details.think[open] summary::before { transform: rotate(90deg); }
 // ==========================================
 const supabaseUrl = 'https://vazzmblpmgaqkrlvwzxe.supabase.co'; // Replace with your URL
 const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZhenptYmxwbWdhcWtybHZ3enhlIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzUwNDk1OTIsImV4cCI6MjA5MDYyNTU5Mn0.BpiU8OW1bWrktOJNbNmTOy4NuuR8W_rdmtKU2Uzdi4k'; // Replace with your anon public key
-// Add "window." before the second supabase!
-const supabase = window.supabase.createClient(supabaseUrl, supabaseKey);
-  
+
+// Renamed variable from `supabase` to `supabaseClient` to avoid global namespace conflicts 
+const supabaseClient = window.supabase.createClient(supabaseUrl, supabaseKey);
+
 let currentUser = null;
 
 let CFG = {
@@ -338,30 +347,54 @@ let pendingAttachments = [];
 // 2. AUTHENTICATION LOGIC
 // ==========================================
 async function handleLogin() {
+  const btn = document.getElementById('btn-login');
+  btn.textContent = 'Authenticating...';
+  btn.disabled = true;
+
   const email = document.getElementById('auth-email').value;
   const password = document.getElementById('auth-password').value;
-  const { data, error } = await supabase.auth.signInWithPassword({ email, password });
-  if (error) document.getElementById('auth-error').textContent = error.message;
+  const { data, error } = await supabaseClient.auth.signInWithPassword({ email, password });
+  
+  if (error) {
+    document.getElementById('auth-error').textContent = error.message;
+    btn.textContent = 'Login';
+    btn.disabled = false;
+  }
 }
 
 async function handleSignup() {
+  const btn = document.getElementById('btn-signup');
   const email = document.getElementById('auth-email').value;
   const password = document.getElementById('auth-password').value;
-  const { data, error } = await supabase.auth.signUp({ email, password });
+  
+  if (!email || !password) {
+    document.getElementById('auth-error').textContent = "Please enter an email and password.";
+    return;
+  }
+
+  btn.textContent = 'Signing up...';
+  btn.disabled = true;
+
+  const { data, error } = await supabaseClient.auth.signUp({ email, password });
+  
   if (error) {
     document.getElementById('auth-error').textContent = error.message;
+    btn.textContent = 'Sign Up';
+    btn.disabled = false;
   } else {
-    document.getElementById('auth-error').textContent = "Success! You can now log in.";
+    document.getElementById('auth-error').textContent = "Success! Logging you in...";
+    btn.textContent = 'Sign Up';
+    btn.disabled = false;
   }
 }
 
 async function handleLogout() {
-  await supabase.auth.signOut();
+  await supabaseClient.auth.signOut();
   window.location.reload();
 }
 
 // Listen for Auth changes. If logged in, fetch database data.
-supabase.auth.onAuthStateChange(async (event, session) => {
+supabaseClient.auth.onAuthStateChange(async (event, session) => {
   if (session) {
     currentUser = session.user;
     document.getElementById('auth-overlay').style.display = 'none';
@@ -382,7 +415,7 @@ document.getElementById('user-input').addEventListener('keydown', e => {
 // ==========================================
 async function initAppData() {
   // A. Fetch User Config
-  const { data: settingsData } = await supabase
+  const { data: settingsData } = await supabaseClient
     .from('settings')
     .select('config')
     .eq('user_id', currentUser.id)
@@ -398,7 +431,7 @@ async function initAppData() {
   document.getElementById('cfg-thinking').checked = CFG.thinking || false;
   
   // B. Fetch Chats
-  const { data: chatsData } = await supabase
+  const { data: chatsData } = await supabaseClient
     .from('chats')
     .select('*')
     .order('updated_at', { ascending: false });
@@ -413,7 +446,7 @@ async function initAppData() {
 
 async function syncSettingsToDB() {
   if (!currentUser) return;
-  await supabase.from('settings').upsert({ 
+  await supabaseClient.from('settings').upsert({ 
     user_id: currentUser.id, 
     config: CFG 
   });
@@ -561,7 +594,7 @@ async function saveState() {
     chats[chatIndex].turns = turns; 
     
     // Save to Supabase DB
-    await supabase.from('chats').upsert({
+    await supabaseClient.from('chats').upsert({
       id: currentChatId,
       user_id: currentUser.id,
       title: chats[chatIndex].title,
@@ -580,7 +613,7 @@ function loadChat(id) {
 async function delChat(e, id) { 
   e.stopPropagation(); 
   chats = chats.filter(c => c.id !== id); 
-  await supabase.from('chats').delete().eq('id', id);
+  await supabaseClient.from('chats').delete().eq('id', id);
   if (currentChatId === id) startNewChat(); else renderSidebar(); 
 }
 async function clearCurrentChat() { turns = []; await saveState(); toggleConfig(); renderAll(); }
@@ -760,4 +793,4 @@ function autoResize(e) { e.style.height = 'auto'; e.style.height = Math.min(e.sc
 let toastTimer; function toast(msg, type = '') { const t = document.getElementById('toast'); t.textContent = msg; t.className = 'show' + (type ? ' ' + type : ''); clearTimeout(toastTimer); toastTimer = setTimeout(() => t.className = '', 2800); }
 </script>
 </body>
-</html>
+  </html> 
