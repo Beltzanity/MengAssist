@@ -344,6 +344,33 @@ function addSystemPreset() {
   syncSettingsToDB(); // Sync the new slot to cloud
 }
 
+// 6. Delete the currently selected preset slot
+function removeSystemPreset() {
+  initPresets();
+  
+  if (CFG.systemPresets.length <= 1) {
+    toast('You must keep at least one preset.', 'err');
+    return;
+  }
+  
+  openConfirm('Are you sure you want to delete this preset slot?', () => {
+    // 1. Remove it from the array
+    CFG.systemPresets.splice(CFG.activePresetIdx, 1);
+    
+    // 2. Fall back to the previous slot safely
+    CFG.activePresetIdx = Math.max(0, CFG.activePresetIdx - 1);
+    
+    // 3. Save to cloud
+    syncSettingsToDB();
+    
+    // 4. Because the confirm modal closes everything, we re-open the sys modal smoothly
+    setTimeout(() => {
+      openModal('modal-sys');
+      toast('Preset deleted ✓', 'ok');
+    }, 50);
+  });
+}
+
 // 5. Save the typed content permanently into the active slot
 function saveSystem() {
   const text = document.getElementById('temp-system').value.trim();
