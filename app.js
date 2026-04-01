@@ -55,6 +55,18 @@ async function handleSignup() {
 
 async function handleLogout() {
   await supabaseClient.auth.signOut();
+  
+  // Save API key temporarily so user doesn't have to re-enter it after logging out
+  const storedKey = localStorage.getItem('mengassist_key');
+  
+  // Clear local storage to ensure clean logout
+  localStorage.clear();
+  
+  // Restore just the API key
+  if (storedKey) {
+    localStorage.setItem('mengassist_key', storedKey);
+  }
+  
   window.location.reload();
 }
 
@@ -69,7 +81,7 @@ supabaseClient.auth.onAuthStateChange(async (event, session) => {
   }
 });
 
-// Mobile Enter Logic
+// Mobile Enter Logic (Kept as requested)
 document.getElementById('user-input').addEventListener('keydown', e => {
   const isMobile = window.innerWidth <= 768 || navigator.maxTouchPoints > 0;
   if (e.key === 'Enter' && !e.shiftKey) { 
@@ -87,22 +99,24 @@ function saveLocalChats() {
 }
 
 async function initAppData() {
+  // 1. Load Local CFG
   const storedKey = localStorage.getItem('mengassist_key');
   if (storedKey) CFG.key = storedKey;
 
   const storedCfg = localStorage.getItem('mengassist_cfg');
   if (storedCfg) { try { Object.assign(CFG, JSON.parse(storedCfg)); } catch(e){} }
 
+  // 2. Load Local Chats
   const storedChats = localStorage.getItem('mengassist_chats');
   if (storedChats) { try { chats = JSON.parse(storedChats); } catch(e){} }
 
+  // 3. Update UI for Config
   document.getElementById('cfg-url').value = CFG.url || '';
   document.getElementById('cfg-key').value = CFG.key || '';
   document.getElementById('cfg-model').value = CFG.model || '';
   document.getElementById('cfg-thinking').checked = CFG.thinking || false;
-  
-  if (chats.length > 0) loadChat(chats[0].id, true); else startNewChat(true);
 
+  // 4. Fetch Remote Config (Supabase)
   try {
     const { data: settingsData } = await supabaseClient.from('settings').select('config').eq('user_id', currentUser.id).single();
     if (settingsData && settingsData.config) {
@@ -112,20 +126,31 @@ async function initAppData() {
       document.getElementById('cfg-model').value = CFG.model || '';
       document.getElementById('cfg-thinking').checked = CFG.thinking || false;
     }
-  } catch (err) {}
+  } catch (err) {
+    console.log("No remote config found or error fetching:", err.message);
+  }
   
+  // 5. Fetch Remote Chats (Supabase)
+  let chatToLoad = null;
+  if (chats.length > 0) chatToLoad = chats[0].id;
+
   try {
     const { data: chatsData } = await supabaseClient.from('chats').select('*').order('updated_at', { ascending: false });
     if (chatsData && chatsData.length > 0) { 
       chats = chatsData; 
       saveLocalChats();
-      if (!currentChatId || !chats.find(c => c.id === currentChatId)) {
-        if (chats.length > 0) loadChat(chats[0].id, true);
-      } else {
-        loadChat(currentChatId, true); 
-      }
+      chatToLoad = chats[0].id;
     }
-  } catch (err) {}
+  } catch (err) {
+    console.log("No remote chats found or error fetching:", err.message);
+  }
+
+  // 6. Load appropriate chat only once to avoid race conditions
+  if (chatToLoad) {
+    loadChat(chatToLoad, true);
+  } else {
+    startNewChat(true);
+  }
 
   if (!CFG.url || !CFG.key || !CFG.model) toggleConfig();
 }
@@ -134,7 +159,9 @@ async function syncSettingsToDB() {
   const safeConfig = { ...CFG }; delete safeConfig.key;
   localStorage.setItem('mengassist_cfg', JSON.stringify(safeConfig));
   if (!currentUser) return;
-  try { await supabaseClient.from('settings').upsert({ user_id: currentUser.id, config: safeConfig }); } catch(err) {}
+  try { await supabaseClient.from('settings').upsert({ user_id: currentUser.id, config: safeConfig }); } catch(err) {
+    console.error("Failed to sync settings:", err);
+  }
 }
 
 async function saveState() {
@@ -159,11 +186,15 @@ async function saveState() {
     saveLocalChats(); 
     if (currentUser) {
       try {
-        await supabaseClient.from('chats').upsert({
+        const { error } = await supabaseClient.from('chats').upsert({
           id: currentChatId, user_id: currentUser.id, title: chats[chatIndex].title,
           turns: cleanTurns, updated_at: new Date().toISOString()
         });
-      } catch (e) {}
+        if (error) throw error;
+      } catch (e) {
+        console.error("Cloud sync error:", e);
+        toast("Failed to sync chat to cloud", "err");
+      }
     }
   }
   renderSidebar();
@@ -172,7 +203,15 @@ async function saveState() {
 // ─── Attachments ──────────────────────────────────────────
 async function handleFiles(event) {
   const files = event.target.files;
+  const MAX_SIZE = 5 * 1024 * 1024; // 5MB limit
+  
   for(let file of files) {
+    // Prevent huge files from crashing the browser
+    if (file.size > MAX_SIZE) {
+      toast(`File ${file.name} is too large (max 5MB)`, 'err');
+      continue;
+    }
+    
     filesLoadingCount++; document.getElementById('send-btn').disabled = true; renderAttachments(); 
     try {
       if (file.type.startsWith('image/')) {
@@ -324,7 +363,15 @@ function clearCurrentChat() {
     if (chatIndex > -1) {
       chats[chatIndex].turns = [];
       saveLocalChats();
-      try { if (currentUser) await supabaseClient.from('chats').update({ turns: [] }).eq('id', currentChatId); } catch(err){}
+      try { 
+        if (currentUser) {
+          const { error } = await supabaseClient.from('chats').update({ turns: [] }).eq('id', currentChatId); 
+          if (error) throw error;
+        }
+      } catch(err) {
+        console.error("Failed to clear cloud chat:", err);
+        toast("Failed to clear chat in cloud", "err");
+      }
     }
     document.getElementById('config').classList.remove('open'); 
     document.getElementById('cfg-toggle').classList.remove('active');
@@ -511,7 +558,7 @@ function makeAiMsg(t, i) {
   controls.appendChild(mkCopy(content)); body.append(bubble, controls); row.append(av, body); return row;
 }
 
-// ─── Formatting & Utilities ───────────────────────────────
+// ─── Formatting & Utilities (FIXED PARSER) ────────────────
 async function executeCopy(text, btnNode) {
   let ok = false;
   if (navigator.clipboard && window.isSecureContext) { try { await navigator.clipboard.writeText(text); ok = true; } catch(e){} }
@@ -531,15 +578,24 @@ function buildCodeBlock(lang, code) {
 function fmt(t) {
   t = esc(t);
   let hasCode = false;
-  t = t.replace(/```(\w*)\n?([\s\S]*?)```/g, (_, lang, code) => { hasCode = true; return buildCodeBlock(lang, code); });
+  
+  // FIXED: Using RegExp here stops the literal backticks from breaking your UI parser!
+  const blockRegex = new RegExp('`{3}(\\w*)\\n?([\\s\\S]*?)`{3}', 'g');
+  t = t.replace(blockRegex, (_, lang, code) => { hasCode = true; return buildCodeBlock(lang, code); });
+  
   if (!hasCode) { const tr = t.trim(); if (tr.startsWith('&lt;!DOCTYPE') || tr.startsWith('&lt;html') || tr.startsWith('&lt;?php')) return buildCodeBlock('html/raw', tr); }
+  
   t = t.replace(/^### (.*$)/gim, '<h3>$1</h3>');
   t = t.replace(/^## (.*$)/gim, '<h2>$1</h2>');
   t = t.replace(/^# (.*$)/gim, '<h1>$1</h1>');
   t = t.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
   t = t.replace(/\*(.+?)\*/g, '<em>$1</em>');
   t = t.replace(/^\s*[-*] (.*)/gim, '<li>$1</li>');
-  t = t.replace(/`([^`\n]+)`/g, '<code>$1</code>');
+  
+  // FIXED: Inline code fixed with RegExp too
+  const inlineRegex = new RegExp('`([^`\\n]+)`', 'g');
+  t = t.replace(inlineRegex, '<code>$1</code>');
+  
   return t;
 }
 
