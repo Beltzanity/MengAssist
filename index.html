@@ -110,17 +110,15 @@
   <div id="modal-sys" class="modal-box" style="display:none;">
     <div class="modal-title">System Prompt</div>
     
-    <!-- Dynamic Presets UI -->
-    <div style="display: flex; gap: 8px; margin-bottom: 12px;">
-      <select id="sys-preset" onchange="applySystemPreset()" style="flex: 1; padding: 8px; border-radius: 6px; background: transparent; border: 1px solid #444; color: inherit; font-family: inherit;">
-        <!-- Populated via JS -->
+    <!-- Fixed 5-Slot Dropdown -->
+    <div style="margin-bottom: 12px;">
+      <select id="sys-preset" onchange="applySystemPreset()" style="width: 100%; padding: 8px; border-radius: 6px; background: transparent; border: 1px solid #444; color: inherit; font-family: inherit;">
+        <option value="0">Preset 1</option>
+        <option value="1">Preset 2</option>
+        <option value="2">Preset 3</option>
+        <option value="3">Preset 4</option>
+        <option value="4">Preset 5</option>
       </select>
-      <button class="btn-ghost" onclick="addSystemPreset()">+ Add</button>
-      <button class="btn-ghost btn-danger" onclick="removeSystemPreset()" style="padding: 8px 12px;" title="Delete Preset">✕</button>
-    </div>
-    <!-- Populated via JS -->
-      </select>
-      <button class="btn-ghost" onclick="addSystemPreset()">+ Add</button>
     </div>
 
     <textarea id="temp-system" placeholder="Enter system prompt here..." rows="5" style="width:100%;"></textarea>
