@@ -299,14 +299,40 @@ function openConfirm(msg, onConfirm) {
 }
 function execConfirm() { if (confirmCallback) confirmCallback(); closeModal(); }
 
+// NEW ADDITION: Preset handler
+function applySystemPreset() {
+  const presetSelect = document.getElementById('sys-preset');
+  const systemTextarea = document.getElementById('temp-system');
+  if (presetSelect.value) {
+    systemTextarea.value = presetSelect.value;
+  }
+}
+
+// UPDATED openModal and closeModal
 function openModal(id) {
   document.getElementById('modal-container').classList.add('open');
-  document.querySelectorAll('.modal-box').forEach(el => el.style.display = 'none'); document.getElementById(id).style.display = 'flex';
-  if (id === 'modal-sys') document.getElementById('temp-system').value = CFG.system;
-  else if (id === 'modal-param') { document.getElementById('temp-temp').value = CFG.temp; document.getElementById('val-temp').textContent = CFG.temp.toFixed(1); document.getElementById('temp-topp').value = CFG.topp; document.getElementById('val-topp').textContent = CFG.topp.toFixed(2); }
+  document.querySelectorAll('.modal-box').forEach(el => el.style.display = 'none'); 
+  document.getElementById(id).style.display = 'flex';
+  
+  if (id === 'modal-sys') {
+    document.getElementById('temp-system').value = CFG.system;
+    
+    // Auto-select dropdown if the text matches a preset exactly
+    const presetSelect = document.getElementById('sys-preset');
+    if (presetSelect) {
+      const match = Array.from(presetSelect.options).find(opt => opt.value === CFG.system);
+      presetSelect.value = match ? CFG.system : "";
+    }
+  }
+  else if (id === 'modal-param') { 
+    document.getElementById('temp-temp').value = CFG.temp; 
+    document.getElementById('val-temp').textContent = CFG.temp.toFixed(1); 
+    document.getElementById('temp-topp').value = CFG.topp; 
+    document.getElementById('val-topp').textContent = CFG.topp.toFixed(2); 
+  }
 }
-function closeModal() { document.getElementById('modal-container').classList.remove('open'); }
 
+function closeModal() { document.getElementById('modal-container').classList.remove('open'); }
 function saveSystem() { CFG.system = document.getElementById('temp-system').value.trim(); syncSettingsToDB(); closeModal(); toast('System Prompt Saved ✓', 'ok'); }
 function saveParams() { CFG.temp = parseFloat(document.getElementById('temp-temp').value); CFG.topp = parseFloat(document.getElementById('temp-topp').value); syncSettingsToDB(); closeModal(); toast('Settings Saved ✓', 'ok'); }
 
