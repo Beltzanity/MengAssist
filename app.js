@@ -12,7 +12,8 @@ let appInitialized = false;
 let CFG = {
   url: '', key: '', model: '', 
   temp: 1.0, topp: 1.0, 
-  system: 'You are a helpful assistant.', thinking: false
+  system: 'You are a helpful assistant.', thinking: false,
+  systemPresets: [], activePresetIdx: 0
 };
 
 let chats = []; 
@@ -22,7 +23,6 @@ let loading = false;
 let filesLoadingCount = 0; 
 let pendingAttachments = [];
 
-// ==========================================
 // ==========================================
 // 2. AUTHENTICATION LOGIC
 // ==========================================
@@ -70,26 +70,18 @@ async function handleSignup() {
 }
 
 async function handleLogout() {
-  // 1. Try to tell the server we are logging out. 
-  // If the server session is expired/glitched, it will fail silently here instead of crashing your app.
   try {
     await supabaseClient.auth.signOut();
   } catch (error) {
     console.warn("Supabase signout error, forcing local logout:", error);
   }
   
-  // 2. Save API key temporarily so user doesn't have to re-enter it
   const storedKey = localStorage.getItem('mengassist_key');
-  
-  // 3. Clear local storage to forcefully kill the session
   localStorage.clear();
-  
-  // 4. Restore just the API key
   if (storedKey) {
     localStorage.setItem('mengassist_key', storedKey);
   }
   
-  // 5. Reload the page to show the login screen
   window.location.reload();
 }
 
@@ -157,7 +149,7 @@ async function initAppData() {
     console.log("No remote chats found or error fetching:", err.message);
   }
 
-  // 6. Load appropriate chat only once to avoid race conditions
+  // 6. Load appropriate chat only once
   if (chatToLoad) {
     loadChat(chatToLoad, true);
   } else {
@@ -218,7 +210,6 @@ async function handleFiles(event) {
   const MAX_SIZE = 5 * 1024 * 1024; // 5MB limit
   
   for(let file of files) {
-    // Prevent huge files from crashing the browser
     if (file.size > MAX_SIZE) {
       toast(`File ${file.name} is too large (max 5MB)`, 'err');
       continue;
@@ -258,7 +249,7 @@ function renderAttachments() {
   if (filesLoadingCount > 0) { const loadChip = el('div', 'attach-chip'); loadChip.textContent = '⏳ Loading file...'; container.appendChild(loadChip); }
 }
 
-// ─── Settings & Presets ────────────────────────────
+// ─── Settings & Connections ────────────────────────────
 function applyPreset() { const val = document.getElementById('cfg-preset').value; if (val) document.getElementById('cfg-url').value = val; }
 
 async function connectAPI() {
@@ -288,85 +279,7 @@ async function connectAPI() {
   btn.textContent = 'Connect'; btn.disabled = false;
 }
 
-// ─── Modals & Confirm Logic ───────────────────────────────
-let confirmCallback = null;
-function openConfirm(msg, onConfirm) {
-  document.getElementById('modal-container').classList.add('open');
-  document.querySelectorAll('.modal-box').forEach(el => el.style.display = 'none');
-  document.getElementById('modal-confirm').style.display = 'flex';
-  document.getElementById('confirm-msg').textContent = msg;
-  confirmCallback = onConfirm;
-}
-function execConfirm() { if (confirmCallback) confirmCallback(); closeModal(); }
-
-// ─── Custom System Prompt Presets ──────────────────────────
-
-// 1. Ensure presets exist in the config
-function initPresets() {
-  if (!CFG.systemPresets || !CFG.systemPresets.length) {
-    // Migrate existing prompt into slot 1
-    CFG.systemPresets = [{ title: 'Preset 1', content: CFG.system || 'You are a helpful assistant.' }];
-    CFG.activePresetIdx = 0;
-  }
-}
-
-// 2. Render the dropdown options
-function renderPresets() {
-  initPresets();
-  const sel = document.getElementById('sys-preset');
-  sel.innerHTML = '';
-  
-  CFG.systemPresets.forEach((p, idx) => {
-    const opt = document.createElement('option');
-    opt.value = idx;
-    opt.textContent = p.title;
-    if (idx === CFG.activePresetIdx) opt.selected = true;
-    sel.appendChild(opt);
-  });
-  
-  document.getElementById('temp-system').value = CFG.systemPresets[CFG.activePresetIdx].content;
-}
-
-// 3. Handle dropdown change
-function applySystemPreset() {
-  CFG.activePresetIdx = parseInt(document.getElementById('sys-preset').value);
-  document.getElementById('temp-system').value = CFG.systemPresets[CFG.activePresetIdx].content;
-}
-
-// 4. Create a new blank preset slot
-function addSystemPreset() {
-  initPresets();
-  const newIdx = CFG.systemPresets.length;
-  CFG.systemPresets.push({ title: 'Preset ' + (newIdx + 1), content: '' });
-  CFG.activePresetIdx = newIdx;
-  
-  renderPresets();
-  syncSettingsToDB(); // Sync the new slot to cloud
-}
-
-// 6. Delete the currently selected preset slot
-function removeSystemPreset() {
-  initPresets();
 // ─── Fixed 5-Slot System Presets ──────────────────────────
-
-function initPresets() {
-  // If presets don't exist yet, create exactly 5 slots. Put current prompt in slot 1.
-  if (!CFG.systemPresets || CFG.systemPresets.length !== 5) {
-    CFG.systemPresets = [
-      CFG.system || 'You are a helpful assistant.', 
-      '', '', '', ''
-    ];
-    CFG.activePresetIdx = 0;
-  }
-}
-
-function applySystemPreset() {
-  const idx = parseInt(document.getElementById('sys-preset').value);
-  document.getElementById('temp-system').value = CFG.systemPresets[idx];
-}
-
-// ─── Fixed 5-Slot System Presets ──────────────────────────
-
 function initPresets() {
   // If presets don't exist yet, create exactly 5 slots. Put current prompt in slot 1.
   if (!CFG.systemPresets || CFG.systemPresets.length !== 5) {
@@ -397,7 +310,18 @@ function saveSystem() {
   toast('System Prompt Saved & Applied ✓', 'ok'); 
 }
 
-// ─── Modals Logic ───────────────────────────────
+// ─── Modals & Confirm Logic ───────────────────────────────
+let confirmCallback = null;
+function openConfirm(msg, onConfirm) {
+  document.getElementById('modal-container').classList.add('open');
+  document.querySelectorAll('.modal-box').forEach(el => el.style.display = 'none');
+  document.getElementById('modal-confirm').style.display = 'flex';
+  document.getElementById('confirm-msg').textContent = msg;
+  confirmCallback = onConfirm;
+}
+
+function execConfirm() { if (confirmCallback) confirmCallback(); closeModal(); }
+
 function openModal(id) {
   document.getElementById('modal-container').classList.add('open');
   document.querySelectorAll('.modal-box').forEach(el => el.style.display = 'none'); 
@@ -420,6 +344,7 @@ function openModal(id) {
 function closeModal() { document.getElementById('modal-container').classList.remove('open'); }
 function saveParams() { CFG.temp = parseFloat(document.getElementById('temp-temp').value); CFG.topp = parseFloat(document.getElementById('temp-topp').value); syncSettingsToDB(); closeModal(); toast('Settings Saved ✓', 'ok'); }
 
+// ─── Sidebar & UI Toggles ─────────────────────────────────
 function toggleSidebar(force) {
   const sb = document.getElementById('sidebar'), ov = document.getElementById('sidebar-overlay');
   const isOpen = force !== undefined ? force : !sb.classList.contains('open');
@@ -680,13 +605,14 @@ function makeAiMsg(t, i) {
   controls.appendChild(mkCopy(content)); body.append(bubble, controls); row.append(av, body); return row;
 }
 
-// ─── Formatting & Utilities (FIXED PARSER) ────────────────
+// ─── Formatting & Utilities ────────────────
 async function executeCopy(text, btnNode) {
   let ok = false;
   if (navigator.clipboard && window.isSecureContext) { try { await navigator.clipboard.writeText(text); ok = true; } catch(e){} }
   if (!ok) { const ta = el('textarea'); ta.value = text; ta.style.cssText = 'position:fixed;opacity:0;'; document.body.appendChild(ta); ta.select(); try { ok = document.execCommand('copy'); } catch(e){} document.body.removeChild(ta); }
   if (ok && btnNode) { const oldText = btnNode.textContent; btnNode.textContent = '✓ copied'; btnNode.classList.add('ok'); setTimeout(() => { btnNode.textContent = oldText; btnNode.classList.remove('ok'); }, 1800); } else if (!ok) { toast('Copy failed', 'err'); }
 }
+
 function mkCopy(text) { const btn = el('button', 'ctrl-btn'); btn.textContent = '⎘ copy'; btn.onclick = () => executeCopy(text, btn); return btn; }
 window.copyCode = function(btn) { executeCopy(btn.closest('.code-block').querySelector('pre').textContent, btn); };
 window.toggleCode = function(btn) { const block = btn.closest('.code-block'); block.classList.toggle('collapsed'); btn.textContent = block.classList.contains('collapsed') ? '▶ expand' : '▼ collapse'; };
@@ -701,7 +627,6 @@ function fmt(t) {
   t = esc(t);
   let hasCode = false;
   
-  // FIXED: Using RegExp here stops the literal backticks from breaking your UI parser!
   const blockRegex = new RegExp('`{3}(\\w*)\\n?([\\s\\S]*?)`{3}', 'g');
   t = t.replace(blockRegex, (_, lang, code) => { hasCode = true; return buildCodeBlock(lang, code); });
   
@@ -714,7 +639,6 @@ function fmt(t) {
   t = t.replace(/\*(.+?)\*/g, '<em>$1</em>');
   t = t.replace(/^\s*[-*] (.*)/gim, '<li>$1</li>');
   
-  // FIXED: Inline code fixed with RegExp too
   const inlineRegex = new RegExp('`([^`\\n]+)`', 'g');
   t = t.replace(inlineRegex, '<code>$1</code>');
   
