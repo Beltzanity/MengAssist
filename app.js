@@ -250,33 +250,102 @@ function renderAttachments() {
 }
 
 // ─── Settings & Connections ────────────────────────────
-function applyPreset() { const val = document.getElementById('cfg-preset').value; if (val) document.getElementById('cfg-url').value = val; }
+
+async function applyPreset() {
+  const presetUrl = document.getElementById('cfg-preset').value;
+  if (!presetUrl) return;
+
+  // 1. Update the UI and State
+  CFG.url = presetUrl;
+  document.getElementById('cfg-url').value = presetUrl;
+  
+  // 2. Clear the old model! (Crucial to prevent 404 errors when switching providers)
+  CFG.model = ''; 
+  renderModelInput('Loading models...');
+
+  // 3. Auto-connect if they already have an API key entered
+  const currentKey = document.getElementById('cfg-key').value.trim();
+  if (currentKey) {
+    await connectAPI();
+  }
+}
 
 async function connectAPI() {
-  const urlBase = document.getElementById('cfg-url').value.trim(), apiKey = document.getElementById('cfg-key').value.trim();
+  const urlBase = document.getElementById('cfg-url').value.trim();
+  const apiKey = document.getElementById('cfg-key').value.trim();
   const btn = document.getElementById('btn-connect');
-  if (!urlBase) return toast('Please enter a Base URL', 'err');
-  btn.textContent = '...'; btn.disabled = true;
+
+  if (!urlBase || !apiKey) return toast('Please enter a Base URL and API Key', 'err');
+
+  btn.textContent = '...'; 
+  btn.disabled = true;
+
+  // Format the URL to hit the /models endpoint correctly
   let modelsUrl = urlBase;
   if (modelsUrl.endsWith('/chat/completions')) modelsUrl = modelsUrl.replace('/chat/completions', '/models');
   else if (!modelsUrl.endsWith('/models')) modelsUrl = modelsUrl.replace(/\/$/, '') + '/models';
 
   try {
-    const res = await fetch(modelsUrl, { method: 'GET', headers: { 'Authorization': `Bearer ${apiKey}`, 'Content-Type': 'application/json' } });
+    const res = await fetch(modelsUrl, { 
+      method: 'GET', 
+      headers: { 
+        'Authorization': Bearer ${apiKey}, 
+        'Content-Type': 'application/json',
+        'HTTP-Referer': window.location.origin, // Required by OpenRouter
+        'X-Title': 'MengAssist'                 // Required by OpenRouter
+      } 
+    });
+    
     if (!res.ok) throw new Error('Invalid Key or CORS Error');
+    
     const data = await res.json();
     if (data.data && Array.isArray(data.data)) {
-      const sel = document.createElement('select'); sel.id = 'cfg-model';
-      data.data.forEach(m => { const opt = document.createElement('option'); opt.value = m.id; opt.textContent = m.id; if (m.id === CFG.model) opt.selected = true; sel.appendChild(opt); });
-      document.getElementById('model-container').innerHTML = ''; document.getElementById('model-container').appendChild(sel);
+      renderModelDropdown(data.data);
       toast('Connected! Models loaded.', 'ok');
-    } else throw new Error('Unrecognized response format');
+    } else {
+      throw new Error('Unrecognized response format');
+    }
   } catch(err) {
     toast(err.message, 'err');
-    const inp = document.createElement('input'); inp.type = 'text'; inp.id = 'cfg-model'; inp.value = CFG.model;
-    document.getElementById('model-container').innerHTML = ''; document.getElementById('model-container').appendChild(inp);
+    renderModelInput(''); // Fallback to manual text input if fetch fails
+  } finally {
+    btn.textContent = 'Connect'; 
+    btn.disabled = false;
   }
-  btn.textContent = 'Connect'; btn.disabled = false;
+}
+
+// Helper: Renders the dropdown automatically sorted
+function renderModelDropdown(models) {
+  const container = document.getElementById('model-container');
+  const sel = document.createElement('select');
+  sel.id = 'cfg-model';
+  
+  // Sort alphabetically so it's easier for the user to read
+  models.sort((a, b) => a.id.localeCompare(b.id));
+
+  models.forEach(m => { 
+    const opt = document.createElement('option'); 
+    opt.value = m.id; 
+    opt.textContent = m.id; 
+    if (m.id === CFG.model) opt.selected = true; 
+    sel.appendChild(opt); 
+  });
+  
+  container.innerHTML = ''; 
+  container.appendChild(sel);
+}
+
+// Helper: Renders a standard text input if API fetching fails
+function renderModelInput(placeholderText = '') {
+  const container = document.getElementById('model-container');
+  const inp = document.createElement('input'); 
+  inp.type = 'text'; 
+  inp.id = 'cfg-model'; 
+  inp.value = CFG.model || '';
+  if (placeholderText) inp.placeholder = placeholderText;
+  
+  container.innerHTML = ''; 
+  container.appendChild(inp);
 }
 
 // ─── Fixed 5-Slot System Presets ──────────────────────────
