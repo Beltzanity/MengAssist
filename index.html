@@ -61,11 +61,12 @@
     <div class="cfg-grid">
       <!-- Quick Provider Preset -->
       <div class="cfg-field">
-        <label>Provider Preset</label>
+        <label>Service Provider</label>
         <select id="cfg-preset" onchange="applyPreset()">
-          <option value="">-- Select Provider --</option>
-          <option value="https://api.openai.com/v1/chat/completions">OpenAI / Compatible</option>
-          <option value="https://openrouter.ai/api/v1/chat/completions">OpenRouter</option>
+          <option value="">-- Choose Provider --</option>
+          <option value="https://api.openai.com/v1/chat/completions">OpenAI Official</option>
+          <option value="https://openrouter.ai/api/v1/chat/completions">OpenRouter (Best for DeepSeek/Claude)</option>
+          <option value="http://localhost:11434/v1/chat/completions">Ollama (Local / Offline)</option>
         </select>
       </div>
 
