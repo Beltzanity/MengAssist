@@ -1,0 +1,182 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<title>MengAssist - BYOK</title>
+
+<!-- Fonts & Libraries -->
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600&family=Syne:wght@400;700&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
+<!-- Link to your new CSS file -->
+<link rel="stylesheet" href="style.css">
+
+</head>
+<body>
+
+<!-- Authentication Overlay -->
+<div id="auth-overlay">
+  <div class="logo"><div class="dot"></div>MengAssist</div>
+  <div id="auth-box">
+    <p style="font-size: 12px; text-align: center; color: var(--muted);">Sign in to access your chats securely</p>
+    
+    <form onsubmit="event.preventDefault(); handleLogin();" style="display:flex; flex-direction:column; gap:15px; width: 100%;">
+      <input type="email" id="auth-email" placeholder="Email Address" required>
+      <input type="password" id="auth-password" placeholder="Password" required>
+      <button type="submit" class="btn-save" id="btn-login">Login</button>
+      <button type="button" class="btn-ghost" id="btn-signup" onclick="handleSignup()">Sign Up</button>
+    </form>
+
+    <div id="auth-error" style="color:#ff6e6e; font-size:11px; text-align:center;"></div>
+  </div>
+</div>
+
+<header>
+  <div class="box-inner">
+    <div class="header-left">
+      <button class="menu-btn" onclick="toggleSidebar()">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="3" y1="12" x2="21" y2="12"></line><line x1="3" y1="6" x2="21" y2="6"></line><line x1="3" y1="18" x2="21" y2="18"></line></svg>
+      </button>
+      <div class="logo"><div class="dot"></div>MengAssist</div>
+    </div>
+    <button class="cfg-btn" id="cfg-toggle" onclick="toggleConfig()">⚙ Config</button>
+  </div>
+</header>
+
+<div id="sidebar-overlay" onclick="toggleSidebar()"></div>
+<div id="sidebar">
+  <div class="side-header">
+    <h2>History</h2>
+    <button class="btn-new" onclick="startNewChat()">+ New</button>
+  </div>
+  <div class="chat-list" id="chat-list"></div>
+  <div class="sidebar-footer">
+    <button class="btn-ghost btn-danger" style="width: 100%;" onclick="handleLogout()">Log Out</button>
+  </div>
+</div>
+
+<div id="config">
+  <div class="box-inner">
+    <div class="cfg-grid">
+      <!-- Quick Provider Preset -->
+      <div class="cfg-field">
+        <label>Provider Preset</label>
+        <select id="cfg-preset" onchange="applyPreset()">
+          <option value="">-- Select Provider --</option>
+          <option value="https://api.openai.com/v1/chat/completions">OpenAI / Compatible</option>
+          <option value="https://openrouter.ai/api/v1/chat/completions">OpenRouter</option>
+        </select>
+      </div>
+
+      <div class="cfg-field">
+        <label>API Base URL</label>
+        <input type="text" id="cfg-url" placeholder="" />
+      </div>
+      <div class="cfg-field">
+        <label>
+          API Key 
+          <span class="sec-badge">Saved Locally Only</span>
+        </label>
+        <div class="cfg-row">
+          <input type="password" id="cfg-key" placeholder="" />
+          <button class="btn-ghost" id="btn-connect" onclick="connectAPI()">Connect</button>
+        </div>
+      </div>
+      <div class="cfg-field">
+        <label>Model</label>
+        <div id="model-container">
+          <input type="text" id="cfg-model" placeholder="" />
+        </div>
+      </div>
+      <div class="cfg-field">
+        <div class="cfg-check">
+          <input type="checkbox" id="cfg-thinking" />
+          <label for="cfg-thinking">Thinking model — show reasoning steps</label>
+        </div>
+      </div>
+    </div>
+    <div class="cfg-actions">
+      <button class="btn-ghost" onclick="openModal('modal-sys')">System Prompt</button>
+      <button class="btn-ghost" onclick="openModal('modal-param')">Parameters</button>
+      <button class="btn-save" style="margin-left: auto;" onclick="saveConfig()">Save Config</button>
+      <button class="btn-ghost btn-danger" onclick="clearCurrentChat()">Clear Chat</button>
+    </div>
+  </div>
+</div>
+
+<!-- Modals -->
+<div id="modal-container" class="modal-overlay" onclick="if(event.target===this) closeModal()">
+  <div id="modal-sys" class="modal-box" style="display:none;">
+    <div class="modal-title">System Prompt</div>
+    
+    <!-- Fixed 5-Slot Dropdown -->
+    <div style="margin-bottom: 12px;">
+      <select id="sys-preset" onchange="applySystemPreset()" style="width: 100%; padding: 8px; border-radius: 6px; background: transparent; border: 1px solid #444; color: inherit; font-family: inherit;">
+        <option value="0">Preset 1</option>
+        <option value="1">Preset 2</option>
+        <option value="2">Preset 3</option>
+        <option value="3">Preset 4</option>
+        <option value="4">Preset 5</option>
+      </select>
+    </div>
+
+    <textarea id="temp-system" placeholder="Enter system prompt here..." rows="5" style="width:100%;"></textarea>
+    
+    <div class="edit-actions" style="margin-top: 10px;">
+      <button onclick="closeModal()">Cancel</button>
+      <button class="btn-save" onclick="saveSystem()">Save & Apply</button>
+    </div>
+  </div>
+
+  <div id="modal-param" class="modal-box" style="display:none;">
+    <div class="modal-title">Generation Settings</div>
+    <div class="modal-slider-group">
+      <label>Temperature <span id="val-temp">1.0</span></label>
+      <input type="range" id="temp-temp" min="0" max="2" step="0.1" value="1.0" oninput="document.getElementById('val-temp').textContent=this.value" />
+    </div>
+    <div class="modal-slider-group">
+      <label>Top P <span id="val-topp">1.0</span></label>
+      <input type="range" id="temp-topp" min="0" max="1" step="0.05" value="1.0" oninput="document.getElementById('val-topp').textContent=this.value" />
+    </div>
+    <div class="edit-actions" style="margin-top:8px;">
+      <button onclick="closeModal()">Cancel</button>
+      <button class="btn-save" onclick="saveParams()">Save</button>
+    </div>
+  </div>
+
+  <div id="modal-confirm" class="modal-box" style="display:none; max-width: 320px; align-items: center; text-align: center;">
+    <div class="modal-title" style="color: #ff6e6e;">Are you sure?</div>
+    <p id="confirm-msg" style="font-size: 12px; color: var(--text); margin-top: 5px; line-height: 1.5;"></p>
+    <div class="edit-actions" style="margin-top: 10px; width: 100%; justify-content: center;">
+      <button class="btn-ghost" onclick="closeModal()" style="flex:1;">Cancel</button>
+      <button class="btn-save" onclick="execConfirm()" style="background: #ff6e6e; color: #000; flex:1;">Confirm</button>
+    </div>
+  </div>
+
+</div>
+
+<div id="chat-box"></div>
+
+<div id="input-area">
+  <div class="box-inner">
+    <div id="attachments-preview" class="attachments-preview"></div>
+    <div class="input-wrap">
+      <input type="file" id="file-upload" multiple style="display:none" onchange="handleFiles(event)">
+      <button class="icon-btn" onclick="document.getElementById('file-upload').click()">📎</button>
+      <textarea id="user-input" placeholder="Type a message..." rows="1" oninput="autoResize(this)"></textarea>
+      <button class="send-btn" id="send-btn" onclick="sendMessage()">
+        <svg viewBox="0 0 24 24" fill="none" stroke="#0d0d0f" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+          <line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/>
+        </svg>
+      </button>
+    </div>
+  </div>
+</div>
+
+<div id="toast"></div>
+
+<!-- Link to your new JS file -->
+<script src="app.js" defer></script>
+</body>
+  </html>
