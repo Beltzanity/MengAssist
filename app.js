@@ -365,6 +365,24 @@ function applySystemPreset() {
   document.getElementById('temp-system').value = CFG.systemPresets[idx];
 }
 
+// ─── Fixed 5-Slot System Presets ──────────────────────────
+
+function initPresets() {
+  // If presets don't exist yet, create exactly 5 slots. Put current prompt in slot 1.
+  if (!CFG.systemPresets || CFG.systemPresets.length !== 5) {
+    CFG.systemPresets = [
+      CFG.system || 'You are a helpful assistant.', 
+      '', '', '', ''
+    ];
+    CFG.activePresetIdx = 0;
+  }
+}
+
+function applySystemPreset() {
+  const idx = parseInt(document.getElementById('sys-preset').value);
+  document.getElementById('temp-system').value = CFG.systemPresets[idx];
+}
+
 function saveSystem() {
   initPresets();
   const idx = parseInt(document.getElementById('sys-preset').value);
@@ -379,7 +397,7 @@ function saveSystem() {
   toast('System Prompt Saved & Applied ✓', 'ok'); 
 }
 
-// ─── Modals & Confirm Logic ───────────────────────────────
+// ─── Modals Logic ───────────────────────────────
 function openModal(id) {
   document.getElementById('modal-container').classList.add('open');
   document.querySelectorAll('.modal-box').forEach(el => el.style.display = 'none'); 
@@ -400,7 +418,6 @@ function openModal(id) {
 }
 
 function closeModal() { document.getElementById('modal-container').classList.remove('open'); }
-function saveSystem() { CFG.system = document.getElementById('temp-system').value.trim(); syncSettingsToDB(); closeModal(); toast('System Prompt Saved ✓', 'ok'); }
 function saveParams() { CFG.temp = parseFloat(document.getElementById('temp-temp').value); CFG.topp = parseFloat(document.getElementById('temp-topp').value); syncSettingsToDB(); closeModal(); toast('Settings Saved ✓', 'ok'); }
 
 function toggleSidebar(force) {
