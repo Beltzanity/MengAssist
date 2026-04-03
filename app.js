@@ -582,8 +582,6 @@ async function callAPI(isRegen, regenIdx) {
         turns[targetIdx].versions[turns[targetIdx].idx] = accumulatedContent;
         turns[targetIdx].thinkVersions[turns[targetIdx].idx] = '';
       }
-    }
-  }
 
 // Helper: Updates the specific bubble during streaming
 function streamUpdateDOM(bubbleNode, content, thinking) {
