@@ -557,17 +557,17 @@ async function callAPI(isRegen, regenIdx) {
     if (err.name === 'AbortError') {
       toast('Generation stopped', 'ok');
     } else {
+      console.error("API Error:", err);
       toast('Error: ' + err.message, 'err');
-      if (!isRegen && accumulatedContent === '') turns.pop();
+      
+      // FIX: If it fails before generating anything, show the error inside the chat!
+      if (accumulatedContent === '') {
+        accumulatedContent = `⚠️ **API Error**\n\n\`${err.message}\`\n\nPlease check your config or network, then click **↻ regen** below.`;
+        turns[targetIdx].versions[turns[targetIdx].idx] = accumulatedContent;
+        turns[targetIdx].thinkVersions[turns[targetIdx].idx] = '';
+      }
     }
   }
-
-  loading = false; 
-  abortController = null;
-  toggleSendButton(false);
-  saveState(); 
-  renderAll(); 
-}
 
 // Helper: Updates the specific bubble during streaming
 function streamUpdateDOM(bubbleNode, content, thinking) {
