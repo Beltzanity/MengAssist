@@ -571,11 +571,16 @@ async function callAPI(isRegen, regenIdx) {
 
 // Helper: Updates the specific bubble during streaming
 function streamUpdateDOM(bubbleNode, content, thinking) {
+  // 1. Check if the details box exists and if the user has closed it
+  const existingDetails = bubbleNode.querySelector('details.think');
+  const isOpen = existingDetails ? existingDetails.hasAttribute('open') : true;
+
   bubbleNode.innerHTML = ''; 
   
   if (CFG.thinking && thinking) {
     const wrap = el('div', 'thinking-wrap');
-    wrap.innerHTML = `<details class="think" open><summary>Reasoning</summary><div class="think-body">${fmt(thinking)}</div></details>`;
+    // 2. Apply the remembered state (open or closed)
+    wrap.innerHTML = `<details class="think" ${isOpen ? 'open' : ''}><summary>Reasoning</summary><div class="think-body">${fmt(thinking)}</div></details>`;
     bubbleNode.appendChild(wrap);
   }
   
