@@ -35,7 +35,7 @@ header .box-inner { justify-content: space-between; align-items: center; }
 .header-left { display: flex; align-items: center; gap: 12px; }
 .menu-btn { background: none; border: none; color: var(--text); cursor: pointer; padding: 4px; display: flex; }
 .logo { font-family: var(--display); font-size: 18px; font-weight: 700; display: flex; align-items: center; gap: 8px; color: var(--gold); letter-spacing: 1px; }
-.dot { width: 7px; height: 7px; background: var(--accent); border-radius: 0; animation: pulse 2s ease-in-out infinite; } /* Square dot */
+.dot { width: 7px; height: 7px; background: var(--accent); border-radius: 0; animation: pulse 2s ease-in-out infinite; }
 @keyframes pulse { 0%,100% { opacity:1; transform:scale(1); } 50% { opacity:.35; transform:scale(.65); } }
 .cfg-btn { background: none; border: 1px solid var(--border); color: var(--muted); font-family: var(--mono); font-size: 10px; padding: 5px 12px; border-radius: var(--radius); cursor: pointer; letter-spacing: .8px; text-transform: uppercase; transition: .2s; }
 .cfg-btn:hover, .cfg-btn.active { border-color: var(--accent); color: var(--accent); }
@@ -138,8 +138,12 @@ header .box-inner { justify-content: space-between; align-items: center; }
 .bubble h3 { font-size: 14px; margin: 8px 0 4px 0; }
 .bubble strong { color: var(--gold); font-weight: 600; }
 .bubble em { color: #ccc; font-style: italic; }
-.bubble li { margin-left: 20px; list-style-type: disc; display: list-item; }
 .bubble code { background: var(--accent-dim); color: var(--text); padding: 1px 5px; border-radius: var(--radius); font-size: 11.5px; }
+
+/* Fixed Markdown Lists */
+ul.md-list { margin-left: 20px; padding-left: 10px; list-style-type: disc; display: block; }
+ul.md-list li { margin-bottom: 4px; display: list-item; }
+
 .code-block { border: 1px solid var(--border); border-radius: var(--radius); overflow: hidden; margin: 8px 0; background: #0a0a0c; width: 100%; }
 .code-header { display: flex; justify-content: space-between; align-items: center; background: #16161a; padding: 6px 12px; border-bottom: 1px solid var(--border); }
 .code-lang { font-size: 10px; color: var(--gold); text-transform: uppercase; letter-spacing: 0.5px; font-weight: 600; }
@@ -168,36 +172,17 @@ details.think[open] summary::before { transform: rotate(90deg); }
 .ver-pager { display: flex; align-items: center; gap: 2px; }
 .ver-badge { font-size: 10px; color: var(--muted); letter-spacing: .4px; user-select: none; padding: 0 4px; }
 .ver-badge b { color: var(--accent); font-weight: 600; }
+
 /* Animated Typing Indicator - Limbus Flicker */
-.typing-dots { 
-  display: flex; 
-  gap: 6px; 
-  align-items: center; 
-  padding: 8px 0; 
-}
-.typing-dots span { 
-  width: 8px; 
-  height: 8px; 
-  background: var(--accent); 
-  border-radius: 0; 
-  opacity: 0.1;
-  animation: limbus-flicker 1.2s infinite; 
-}
+.typing-dots { display: flex; gap: 6px; align-items: center; padding: 8px 0; }
+.typing-dots span { width: 8px; height: 8px; background: var(--accent); border-radius: 0; opacity: 0.1; animation: limbus-flicker 1.2s infinite; }
 .typing-dots span:nth-child(1) { animation-delay: 0s; }
 .typing-dots span:nth-child(2) { animation-delay: 0.2s; }
 .typing-dots span:nth-child(3) { animation-delay: 0.4s; }
 
 @keyframes limbus-flicker {
-  0%, 100% { 
-    opacity: 0.1; 
-    transform: scale(0.8);
-    box-shadow: none;
-  }
-  50% { 
-    opacity: 1; 
-    transform: scale(1.1);
-    box-shadow: 0 0 8px var(--accent); 
-  }
+  0%, 100% { opacity: 0.1; transform: scale(0.8); box-shadow: none; }
+  50% { opacity: 1; transform: scale(1.1); box-shadow: 0 0 8px var(--accent); }
 }
 
 /* Input area */
@@ -218,6 +203,10 @@ details.think[open] summary::before { transform: rotate(90deg); }
 .send-btn:active:not(:disabled) { transform: scale(.95); }
 .send-btn:disabled { opacity: .3; cursor: not-allowed; transform: none; }
 .send-btn svg { width: 15px; height: 15px; fill: currentColor; }
+
+/* Stop Button State */
+.send-btn.stop-mode { background: transparent; border: 1px solid var(--accent); color: var(--accent); }
+.send-btn.stop-mode:hover { background: var(--accent-dim); color: var(--accent); border-color: var(--accent); }
 
 /* Toast */
 #toast { position: fixed; bottom: 90px; left: 50%; transform: translateX(-50%) translateY(12px); background: #1c1c1f; border: 1px solid var(--border); color: var(--text); font-size: 11px; padding: 9px 16px; border-radius: var(--radius); opacity: 0; pointer-events: none; transition: all .25s; white-space: nowrap; max-width: 88vw; text-align: center; z-index: 999; }
