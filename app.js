@@ -576,12 +576,6 @@ async function callAPI(isRegen, regenIdx) {
   renderAll(); 
 }
                 
-      // FIX: If it fails before generating anything, show the error inside the chat!
-      if (accumulatedContent === '') {
-        accumulatedContent = `⚠️ **API Error**\n\n\`${err.message}\`\n\nPlease check your config or network, then click **↻ regen** below.`;
-        turns[targetIdx].versions[turns[targetIdx].idx] = accumulatedContent;
-        turns[targetIdx].thinkVersions[turns[targetIdx].idx] = '';
-      }
 
 // Helper: Updates the specific bubble during streaming
 function streamUpdateDOM(bubbleNode, content, thinking) {
