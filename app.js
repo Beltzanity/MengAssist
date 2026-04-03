@@ -10,7 +10,7 @@ const supabaseClient = window.supabase.createClient(supabaseUrl, supabaseKey);
 
 let currentUser = null;
 let appInitialized = false;
-
+let toastTimer = null;
 let CFG = {
   url: '', key: '', model: '', 
   temp: 1.0, topp: 1.0, 
@@ -758,4 +758,4 @@ function scrollBottom(smart = false) {
 }
 
 function autoResize(e) { e.style.height = 'auto'; e.style.height = Math.min(e.scrollHeight, 130) + 'px'; }
-let toastTimer; function toast(msg, type = '') { const t = document.getElementById('toast'); t.textContent = msg; t.className = 'show' + (type ? ' ' + type : ''); clearTimeout(toastTimer); toastTimer = setTimeout(() => t.className = '', 2800); }
+function toast(msg, type = '') { const t = document.getElementById('toast'); t.textContent = msg; t.className = 'show' + (type ? ' ' + type : ''); clearTimeout(toastTimer); toastTimer = setTimeout(() => t.className = '', 2800); }
