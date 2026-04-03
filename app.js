@@ -560,6 +560,22 @@ async function callAPI(isRegen, regenIdx) {
       console.error("API Error:", err);
       toast('Error: ' + err.message, 'err');
       
+      // If it fails before generating anything, show the error inside the chat!
+      if (accumulatedContent === '') {
+        accumulatedContent = `⚠️ **API Error**\n\n\`${err.message}\`\n\nPlease check your config or network, then click **↻ regen** below.`;
+        turns[targetIdx].versions[turns[targetIdx].idx] = accumulatedContent;
+        turns[targetIdx].thinkVersions[turns[targetIdx].idx] = '';
+      }
+    }
+  }
+
+  loading = false; 
+  abortController = null;
+  toggleSendButton(false);
+  saveState(); 
+  renderAll(); 
+}
+                
       // FIX: If it fails before generating anything, show the error inside the chat!
       if (accumulatedContent === '') {
         accumulatedContent = `⚠️ **API Error**\n\n\`${err.message}\`\n\nPlease check your config or network, then click **↻ regen** below.`;
