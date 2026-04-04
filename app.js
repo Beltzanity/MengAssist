@@ -513,10 +513,13 @@ if (toggleUi) toggleUi.style.opacity = '0.5'; // dim it while searching
     } catch(err) {
       toast('Tavily search failed', 'err');
     }
-    
-    if (searchBtn) searchBtn.textContent = '🌐';
-    loading = false;
-  }
+
+    if (toggleUi) toggleUi.style.opacity = '1'; 
+      loading = false;
+    }
+}
+  
+  
   // ------------------------------------
 
   turns.push({ 
