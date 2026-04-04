@@ -213,3 +213,83 @@ details.think[open] summary::before { transform: rotate(90deg); }
 #toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
 #toast.err { color: #ff4444; border-color: var(--accent); background: #1e1515; }
 #toast.ok  { color: var(--gold); border-color: var(--gold); background: #141111; }
+
+/* --- Plus Menu & Capsule Toggle --- */
+.attach-menu {
+  position: absolute;
+  bottom: calc(100% + 10px);
+  left: 0;
+  background: var(--surface);
+  border: 1px solid var(--accent); /* Sharp Limbus Red */
+  border-radius: var(--radius);
+  padding: 6px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 220px;
+  opacity: 0;
+  pointer-events: none;
+  transform: translateY(10px);
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+  z-index: 100;
+  box-shadow: 0 4px 15px rgba(0,0,0,0.8);
+}
+.attach-menu.open {
+  opacity: 1;
+  pointer-events: auto;
+  transform: translateY(0);
+}
+.attach-menu .menu-item {
+  display: flex;
+  align-items: center;
+  background: transparent;
+  border: none;
+  color: var(--text);
+  font-family: var(--mono);
+  font-size: 11px;
+  padding: 12px;
+  cursor: pointer;
+  text-align: left;
+  border-radius: var(--radius);
+  transition: background 0.2s;
+  width: 100%;
+}
+.attach-menu .menu-item:hover { background: var(--surface-hover); }
+.attach-menu .menu-item .icon { font-size: 14px; color: var(--muted); transition: color 0.2s; }
+.attach-menu .menu-item:hover .icon { color: var(--gold); }
+.toggle-item { justify-content: space-between; }
+
+/* Rotating Plus Icon */
+.icon-btn.plus-btn svg { transition: transform 0.25s ease; }
+.icon-btn.plus-btn.open { color: var(--accent); }
+.icon-btn.plus-btn.open svg { transform: rotate(45deg); }
+
+/* Capsule Toggle UI */
+.capsule-toggle {
+  width: 32px;
+  height: 18px;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 20px;
+  position: relative;
+  transition: 0.2s ease;
+  pointer-events: none; /* Clicking the row triggers it */
+}
+.capsule-toggle.active {
+  background: var(--accent-dim);
+  border-color: var(--accent);
+}
+.toggle-thumb {
+  width: 12px;
+  height: 12px;
+  background: var(--muted);
+  border-radius: 50%;
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  transition: 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+.capsule-toggle.active .toggle-thumb {
+  background: var(--accent);
+  left: 16px;
+}
