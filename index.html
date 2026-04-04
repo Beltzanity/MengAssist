@@ -166,17 +166,36 @@
 <div id="input-area">
   <div class="box-inner">
     <div id="attachments-preview" class="attachments-preview"></div>
-    <div class="input-wrap">
+    <div class="input-wrap" style="position: relative;">
       <input type="file" id="file-upload" multiple style="display:none" onchange="handleFiles(event)">
-      <button class="icon-btn" onclick="document.getElementById('file-upload').click()">📎</button>
-      <button class="icon-btn" id="search-toggle-btn" onclick="toggleWebSearch()" title="Toggle Web Search" style="transition: color 0.2s;">🌐</button>
+      
+      <!-- New + Button -->
+      <button class="icon-btn plus-btn" id="plus-btn" onclick="toggleAttachMenu(event)" title="Tools">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
+      </button>
+
+      <!-- The Popup Menu -->
+      <div id="attach-menu" class="attach-menu">
+        <button class="menu-item" onclick="triggerFileUpload()">
+          <span class="icon">📎</span> Upload File / Image
+        </button>
+        <div class="menu-item toggle-item" onclick="toggleWebSearch(event)">
+          <div>
+            <span class="icon" style="margin-right: 8px;">🌐</span> Web Search
+          </div>
+          <div class="capsule-toggle" id="web-search-toggle">
+            <div class="toggle-thumb"></div>
+          </div>
+        </div>
+      </div>
+      
       <textarea id="user-input" placeholder="Type a message..." rows="1" oninput="autoResize(this)"></textarea>
       <button class="send-btn" id="send-btn" onclick="sendMessage()">
         <svg viewBox="0 0 24 24" fill="none" stroke="#0d0d0f" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
           <line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/>
         </svg>
       </button>
-    </div>
+        </div>
   </div>
 </div>
 
