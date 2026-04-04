@@ -84,6 +84,10 @@
           <button class="btn-ghost" id="btn-connect" onclick="connectAPI()">Connect</button>
         </div>
       </div>
+<div class="cfg-field">
+  <label>Tavily Search API Key (Optional)</label>
+  <input type="password" id="cfg-tavily" placeholder="tvly-..." />
+</div>
       <div class="cfg-field">
         <label>Model</label>
         <div id="model-container">
@@ -165,6 +169,7 @@
     <div class="input-wrap">
       <input type="file" id="file-upload" multiple style="display:none" onchange="handleFiles(event)">
       <button class="icon-btn" onclick="document.getElementById('file-upload').click()">📎</button>
+      <button class="icon-btn" id="search-toggle-btn" onclick="toggleWebSearch()" title="Toggle Web Search" style="transition: color 0.2s;">🌐</button>
       <textarea id="user-input" placeholder="Type a message..." rows="1" oninput="autoResize(this)"></textarea>
       <button class="send-btn" id="send-btn" onclick="sendMessage()">
         <svg viewBox="0 0 24 24" fill="none" stroke="#0d0d0f" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
