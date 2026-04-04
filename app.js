@@ -449,7 +449,7 @@ function buildMessages(upToTurnIdx = null) {
       let promptText = t.content || '';
       
       if (t.searchContext) {
-        promptText += `\n\n### Web Search Results ###\nUse the following up-to-date information to answer the user's query if relevant:\n\n${t.searchContext}`;
+        promptText += `\n\n### Web Search Results ###\nUse the following up-to-date information to answer the user's query if relevant. **Crucial Instruction:** You MUST cite your sources by adding inline Markdown links (e.g., [[Source Name](URL)]) immediately after using information from a result.\n\n${t.searchContext}`;
       }
       
       if (t.files && t.files.length > 0) t.files.forEach(f => { promptText += `\n\n--- File: ${f.name} ---\n${f.data}`; });
@@ -828,6 +828,9 @@ function fmt(t) {
     const items = match.trim().split('\n').map(line => `<li>${line.replace(/^\s*[-*] /, '')}</li>`).join('');
     return `<ul class="md-list">${items}</ul>`;
   });
+
+  // NEW: Convert Markdown links to clickable HTML links
+  t = t.replace(/\[([^\]]+)\]\((https?:\/\/[^\s)]+)\)/g, '<a href="$2" target="_blank" class="chat-link">$1</a>');
   
   const inlineRegex = new RegExp('`([^`\\n]+)`', 'g');
   t = t.replace(inlineRegex, '<code>$1</code>');
