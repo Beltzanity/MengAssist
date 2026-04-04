@@ -345,10 +345,17 @@ function saveConfig() {
 }
 
 // NEW: Toggle Web Search
-function toggleWebSearch() {
+function toggleWebSearch(e) {
+  if (e) e.stopPropagation(); // prevent menu from closing
   webSearchEnabled = !webSearchEnabled;
-  const btn = document.getElementById('search-toggle-btn');
-  if (btn) btn.style.color = webSearchEnabled ? '#3b82f6' : 'inherit';
+  const toggleUi = document.getElementById('web-search-toggle');
+  
+  if (webSearchEnabled) {
+    toggleUi.classList.add('active');
+    toast('Web Search Enabled', 'ok');
+  } else {
+    toggleUi.classList.remove('active');
+  }
 }
 
 // ─── Data Management ──────────────────────────────────────
@@ -449,6 +456,28 @@ function toggleSendButton(isGenerating) {
 
 function stopGeneration() { if (abortController) abortController.abort(); }
 
+// --- NEW: Plus Menu Logic ---
+function toggleAttachMenu(e) {
+  if (e) e.stopPropagation();
+  document.getElementById('attach-menu').classList.toggle('open');
+  document.getElementById('plus-btn').classList.toggle('open');
+}
+
+function triggerFileUpload() {
+  document.getElementById('file-upload').click();
+  toggleAttachMenu(); // Close menu after clicking
+}
+
+// Close popup menu when clicking anywhere else
+document.addEventListener('click', (e) => {
+  const menu = document.getElementById('attach-menu');
+  const btn = document.getElementById('plus-btn');
+  if (menu && menu.classList.contains('open') && !menu.contains(e.target) && !btn.contains(e.target)) {
+    menu.classList.remove('open');
+    btn.classList.remove('open');
+  }
+});
+
 async function sendMessage() {
   const inp = document.getElementById('user-input'); 
   let text = inp.value.trim();
@@ -465,8 +494,8 @@ async function sendMessage() {
   if (webSearchEnabled && text) {
     if (!CFG.tavilyKey) { toggleConfig(); toast('Enter Tavily Key in Config', 'err'); return; }
     
-    const searchBtn = document.getElementById('search-toggle-btn');
-    if (searchBtn) searchBtn.textContent = '⏳';
+    const toggleUi = document.getElementById('web-search-toggle');
+if (toggleUi) toggleUi.style.opacity = '0.5'; // dim it while searching
     loading = true; // prevent double clicks while searching
     
     try {
