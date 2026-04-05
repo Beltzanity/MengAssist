@@ -593,18 +593,27 @@ async function callAPI(isRegen, regenIdx) {
     const reader = res.body.getReader();
     const decoder = new TextDecoder('utf-8');
     let done = false;
+    
+    let buffer = ''; // 1. CREATE A BUFFER
 
     while (!done) {
       const { value, done: readerDone } = await reader.read();
       done = readerDone;
       if (value) {
-        const chunk = decoder.decode(value, { stream: true });
-        const lines = chunk.split('\n');
+        // 2. APPEND NEW DATA TO THE BUFFER
+        buffer += decoder.decode(value, { stream: true });
+        
+        // 3. SPLIT THE BUFFER BY NEWLINES
+        const lines = buffer.split('\n');
+        
+        // 4. THE LAST ITEM MIGHT BE INCOMPLETE. POP IT OFF AND KEEP IT IN THE BUFFER FOR NEXT TIME
+        buffer = lines.pop(); 
         
         for (const line of lines) {
-          if (line.startsWith('data: ') && line !== 'data:[DONE]') {
+          const cleanLine = line.trim();
+          if (cleanLine.startsWith('data: ') && !cleanLine.includes('[DONE]')) {
             try {
-              const data = JSON.parse(line.slice(6)); 
+              const data = JSON.parse(cleanLine.slice(6)); 
               const delta = data.choices?.[0]?.delta || {};
 
               if (delta.reasoning_content) {
@@ -632,7 +641,10 @@ async function callAPI(isRegen, regenIdx) {
                   accumulatedContent += text;
                 }
               }
-            } catch (e) { /* ignore chunk parse errors */ }
+            } catch (e) { 
+              // Now if it fails, it's a real JSON error, not a chunking error
+              console.warn("Stream parse error:", e); 
+            }
           }
         }
 
