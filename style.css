@@ -307,3 +307,72 @@ details.think[open] summary::before { transform: rotate(90deg); }
   border-bottom: 1px solid var(--gold);
   background: var(--accent-dim);
 }
+
+/* --- Limbus Tagline Login Animation (INFINITE LOOP) --- */
+.limbus-tagline {
+  font-family: var(--display);
+  text-transform: uppercase;
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-bottom: 30px;
+  user-select: none;
+  pointer-events: none;
+}
+
+.limbus-tagline .line1 {
+  font-size: 18px;
+  color: var(--text);
+  margin-right: -8px; /* Optical centering compensation */
+  opacity: 0;
+  /* 8-second master loop for the top line */
+  animation: loop-line1 8s infinite cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+
+.limbus-tagline .line2 {
+  font-size: 28px;
+  color: var(--accent);
+  font-weight: 700;
+  margin-right: -12px; /* Optical centering compensation */
+  opacity: 0;
+  /* 8-second master loop for the bottom line + continuous breathing glow */
+  animation: 
+    loop-line2 8s infinite cubic-bezier(0.2, 0.8, 0.2, 1),
+    tagline-pulse 3s infinite ease-in-out;
+}
+
+.auth-title {
+  font-family: var(--display);
+  font-size: 16px;
+  color: var(--gold);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  margin-bottom: 5px;
+  letter-spacing: 1px;
+}
+
+/* Master Timeline: LINE 1 (0% to 100% = 8 seconds) */
+@keyframes loop-line1 {
+  0% { opacity: 0; filter: blur(12px); transform: translateY(15px) scale(0.9); letter-spacing: 24px; }
+  15% { opacity: 1; filter: blur(0); transform: translateY(0) scale(1); letter-spacing: 8px; }
+  75% { opacity: 1; filter: blur(0); transform: translateY(0) scale(1); letter-spacing: 8px; }
+  85% { opacity: 0; filter: blur(10px); transform: translateY(-10px) scale(1.05); letter-spacing: 4px; }
+  100% { opacity: 0; filter: blur(10px); transform: translateY(-10px) scale(1.05); letter-spacing: 4px; }
+}
+
+/* Master Timeline: LINE 2 (Trails slightly behind Line 1) */
+@keyframes loop-line2 {
+  0%, 10% { opacity: 0; filter: blur(12px); transform: translateY(15px) scale(0.9); letter-spacing: 28px; }
+  25% { opacity: 1; filter: blur(0); transform: translateY(0) scale(1); letter-spacing: 12px; }
+  85% { opacity: 1; filter: blur(0); transform: translateY(0) scale(1); letter-spacing: 12px; }
+  95%, 100% { opacity: 0; filter: blur(10px); transform: translateY(-10px) scale(1.05); letter-spacing: 8px; }
+}
+
+/* Independent Visceral Red Glow (Runs concurrently without messing up opacity fades) */
+@keyframes tagline-pulse {
+  0%, 100% { text-shadow: 0 0 10px rgba(211, 25, 25, 0.3); }
+  50% { text-shadow: 0 0 25px rgba(211, 25, 25, 0.8), 0 0 8px var(--accent); }
+}
