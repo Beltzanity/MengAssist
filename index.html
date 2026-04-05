@@ -18,9 +18,16 @@
 
 <!-- Authentication Overlay -->
 <div id="auth-overlay">
-  <div class="logo"><div class="dot"></div>MengAssist</div>
+  <!-- Animated Limbus Tagline -->
+  <div class="limbus-tagline">
+    <div class="line1">FACE THE SIN,</div>
+    <div class="line2">SAVE THE E.G.O</div>
+  </div>
+
   <div id="auth-box">
-    <p style="font-size: 12px; text-align: center; color: var(--muted);">Sign in to access your chats securely</p>
+    <!-- Keep the app name inside the box -->
+    <div class="auth-title"><div class="dot"></div>MengAssist</div>
+    <p style="font-size: 12px; text-align: center; color: var(--muted); margin-bottom: 5px;">Sign in to access your terminal securely</p>
     
     <form onsubmit="event.preventDefault(); handleLogin();" style="display:flex; flex-direction:column; gap:15px; width: 100%;">
       <input type="email" id="auth-email" placeholder="Email Address" required>
