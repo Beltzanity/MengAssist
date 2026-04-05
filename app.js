@@ -581,9 +581,20 @@ async function callAPI(isRegen, regenIdx) {
   let inThinkBlock = false;
 
   try {
+    // 1. Setup headers (Adding OpenRouter specific headers)
+    const headers = { 
+      'Content-Type': 'application/json', 
+      'Authorization': `Bearer ${CFG.key}` 
+    };
+    
+    if (CFG.url.includes('openrouter')) {
+      headers['HTTP-Referer'] = window.location.href; // Required by OpenRouter
+      headers['X-Title'] = 'MengAssist';
+    }
+
     const res = await fetch(CFG.url, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${CFG.key}` },
+      headers: headers,
       body: JSON.stringify({ model: CFG.model, messages, temperature: CFG.temp, top_p: CFG.topp, stream: true }),
       signal: abortController.signal
     });
@@ -593,58 +604,72 @@ async function callAPI(isRegen, regenIdx) {
     const reader = res.body.getReader();
     const decoder = new TextDecoder('utf-8');
     let done = false;
-    
-    let buffer = ''; // 1. CREATE A BUFFER
+    let buffer = '';
+
+    // 2. Create a helper function to process a single stream line safely
+    const processLine = (line) => {
+      const cleanLine = line.trim();
+      
+      // Catch raw errors that OpenRouter sometimes spits out without the 'data:' prefix
+      if (cleanLine.startsWith('{"error":')) {
+        const errData = JSON.parse(cleanLine);
+        throw new Error(errData.error?.message || "Upstream API Error");
+      }
+
+      if (cleanLine.startsWith('data: ') && !cleanLine.includes('[DONE]')) {
+        const data = JSON.parse(cleanLine.slice(6)); 
+        
+        // Catch OpenRouter in-stream errors!
+        if (data.error) {
+          throw new Error(data.error.message || "Provider returned error mid-stream");
+        }
+
+        const delta = data.choices?.[0]?.delta || {};
+
+        if (delta.reasoning_content) {
+          accumulatedThinking += delta.reasoning_content;
+        }
+
+        if (delta.content) {
+          let text = delta.content;
+
+          if (!inThinkBlock && text.includes('<think>')) {
+            inThinkBlock = true;
+            text = text.replace('<think>', '');
+          }
+
+          if (inThinkBlock) {
+            if (text.includes('</think>')) {
+              inThinkBlock = false;
+              const parts = text.split('</think>');
+              accumulatedThinking += parts[0];
+              accumulatedContent += parts[1] || '';
+            } else {
+              accumulatedThinking += text;
+            }
+          } else {
+            accumulatedContent += text;
+          }
+        }
+      }
+    };
 
     while (!done) {
       const { value, done: readerDone } = await reader.read();
       done = readerDone;
       if (value) {
-        // 2. APPEND NEW DATA TO THE BUFFER
         buffer += decoder.decode(value, { stream: true });
-        
-        // 3. SPLIT THE BUFFER BY NEWLINES
         const lines = buffer.split('\n');
         
-        // 4. THE LAST ITEM MIGHT BE INCOMPLETE. POP IT OFF AND KEEP IT IN THE BUFFER FOR NEXT TIME
+        // Pop off the last incomplete chunk to save for the next loop
         buffer = lines.pop(); 
         
         for (const line of lines) {
-          const cleanLine = line.trim();
-          if (cleanLine.startsWith('data: ') && !cleanLine.includes('[DONE]')) {
-            try {
-              const data = JSON.parse(cleanLine.slice(6)); 
-              const delta = data.choices?.[0]?.delta || {};
-
-              if (delta.reasoning_content) {
-                accumulatedThinking += delta.reasoning_content;
-              }
-
-              if (delta.content) {
-                let text = delta.content;
-
-                if (!inThinkBlock && text.includes('<think>')) {
-                  inThinkBlock = true;
-                  text = text.replace('<think>', '');
-                }
-
-                if (inThinkBlock) {
-                  if (text.includes('</think>')) {
-                    inThinkBlock = false;
-                    const parts = text.split('</think>');
-                    accumulatedThinking += parts[0];
-                    accumulatedContent += parts[1] || '';
-                  } else {
-                    accumulatedThinking += text;
-                  }
-                } else {
-                  accumulatedContent += text;
-                }
-              }
-            } catch (e) { 
-              // Now if it fails, it's a real JSON error, not a chunking error
-              console.warn("Stream parse error:", e); 
-            }
+          try {
+            processLine(line);
+          } catch(e) {
+            // If processLine throws an error (like the OpenRouter error), bubble it up
+            if (e.message.includes("Provider") || e.message.includes("Error")) throw e;
           }
         }
 
@@ -655,6 +680,18 @@ async function callAPI(isRegen, regenIdx) {
         scrollBottom(true); 
       }
     }
+    
+    // 3. FLUSH THE BUFFER (This fixes the missing "." at the end!)
+    if (buffer.length > 0) {
+      try {
+        processLine(buffer);
+        turns[targetIdx].versions[turns[targetIdx].idx] = accumulatedContent;
+        turns[targetIdx].thinkVersions[turns[targetIdx].idx] = accumulatedThinking;
+        streamUpdateDOM(bubbleNode, accumulatedContent, accumulatedThinking);
+        scrollBottom(true);
+      } catch(e) { /* ignore cleanup errors */ }
+    }
+
   } catch (err) {
     if (err.name === 'AbortError') {
       toast('Generation stopped', 'ok');
