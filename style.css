@@ -376,3 +376,47 @@ details.think[open] summary::before { transform: rotate(90deg); }
   0%, 100% { text-shadow: 0 0 10px rgba(211, 25, 25, 0.3); }
   50% { text-shadow: 0 0 25px rgba(211, 25, 25, 0.8), 0 0 8px var(--accent); }
 }
+
+/* Hazard border bottom when typing */
+.input-wrap::after {
+  content: "";
+  position: absolute;
+  bottom: -1px; left: 0; right: 0;
+  height: 2px;
+  background: repeating-linear-gradient(
+    45deg,
+    var(--gold),
+    var(--gold) 10px,
+    var(--bg) 10px,
+    var(--bg) 20px
+  );
+  opacity: 0;
+  transition: opacity 0.3s;
+  background-size: 200% 100%;
+}
+
+.input-wrap:focus-within::after {
+  opacity: 1;
+  animation: hazard-scroll 2s linear infinite;
+}
+
+@keyframes hazard-scroll {
+  0% { background-position: 0 0; }
+  100% { background-position: -40px 0; }
+       }
+
+/* Subtle CRT Scanline Overlay */
+body::after {
+  content: " ";
+  display: block;
+  position: absolute;
+  top: 0;
+  left: 0;
+  bottom: 0;
+  right: 0;
+  background: linear-gradient(rgba(18, 16, 16, 0) 50%, rgba(0, 0, 0, 0.25) 50%), linear-gradient(90deg, rgba(255, 0, 0, 0.06), rgba(0, 255, 0, 0.02), rgba(0, 0, 255, 0.06));
+  z-index: 2;
+  background-size: 100% 4px, 6px 100%;
+  pointer-events: none; /* Lets you click through it */
+  opacity: 0.4;
+       }
