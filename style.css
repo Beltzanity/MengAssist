@@ -377,34 +377,6 @@ details.think[open] summary::before { transform: rotate(90deg); }
   50% { text-shadow: 0 0 25px rgba(211, 25, 25, 0.8), 0 0 8px var(--accent); }
 }
 
-/* Hazard border bottom when typing */
-.input-wrap::after {
-  content: "";
-  position: absolute;
-  bottom: -1px; left: 0; right: 0;
-  height: 2px;
-  background: repeating-linear-gradient(
-    45deg,
-    var(--gold),
-    var(--gold) 10px,
-    var(--bg) 10px,
-    var(--bg) 20px
-  );
-  opacity: 0;
-  transition: opacity 0.3s;
-  background-size: 200% 100%;
-}
-
-.input-wrap:focus-within::after {
-  opacity: 1;
-  animation: hazard-scroll 2s linear infinite;
-}
-
-@keyframes hazard-scroll {
-  0% { background-position: 0 0; }
-  100% { background-position: -40px 0; }
-       }
-
 /* Subtle CRT Scanline Overlay */
 body::after {
   content: " ";
